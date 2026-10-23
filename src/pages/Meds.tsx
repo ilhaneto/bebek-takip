@@ -10,17 +10,10 @@ import { Button, Card, Chip, Empty, Fab, IconBadge, IconButton, Input, Label, Pa
 type RepeatType = Schedule['type']
 const REMIND_OPTIONS = [0, 15, 30, 60]
 
-const PRESETS = [
-  { label: 'Sabah', time: '08:00' },
-  { label: 'Öğle', time: '13:00' },
-  { label: 'Akşam', time: '19:00' },
-  { label: 'Gece', time: '22:00' },
-]
-
-/** Saat seçimi: hazır saatlere dokun ya da iOS saat çarkıyla kendi saatini ekle. Klavyeyle yazmak gerekmez. */
+/** Saat seçimi: her saate dokununca çark açılır, dakikalar 15'er; klavyeyle yazmak gerekmez. */
 function TimesField({ times, onChange }: { times: string[]; onChange: (t: string[]) => void }) {
   const sorted = [...new Set(times)].sort()
-  const toggle = (t: string) => onChange(sorted.includes(t) ? sorted.filter(x => x !== t) : [...sorted, t].sort())
+  const remove = (t: string) => onChange(sorted.filter(x => x !== t))
   const addCustom = () => {
     // Listede olmayan ilk tam saati öner; kullanıcı çarktan değiştirir
     const free = Array.from({ length: 24 }, (_, h) => `${String((h + 9) % 24).padStart(2, '0')}:00`).find(t => !sorted.includes(t)) ?? '12:00'
@@ -29,30 +22,12 @@ function TimesField({ times, onChange }: { times: string[]; onChange: (t: string
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-4 gap-1.5">
-        {PRESETS.map(p => {
-          const on = sorted.includes(p.time)
-          return (
-            <button
-              key={p.time}
-              onClick={() => toggle(p.time)}
-              aria-label={`${p.label} ${p.time}`}
-              aria-pressed={on}
-              className={`flex flex-col items-center rounded-2xl border py-2 transition active:scale-95 ${on ? 'border-rose/50 bg-rose/15 text-rose' : 'border-line bg-surface-2 text-muted'}`}
-            >
-              <span className="text-[13px] font-semibold">{p.label}</span>
-              <span className="text-[12px] tabular-nums opacity-80">{p.time}</span>
-            </button>
-          )
-        })}
-      </div>
-
       {sorted.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {sorted.map(t => (
             <div key={t} className="flex items-center gap-1 rounded-2xl border border-line bg-surface-2 pl-2 pr-1">
               <TimeSelect compact value={t} onChange={v => onChange([...new Set(sorted.map(x => (x === t ? v : x)))].sort())} />
-              <button onClick={() => toggle(t)} aria-label={`${t} kaldır`} className="grid size-8 place-items-center rounded-full text-faint active:bg-surface">
+              <button onClick={() => remove(t)} aria-label={`${t} kaldır`} className="grid size-8 place-items-center rounded-full text-faint active:bg-surface">
                 <X size={16} />
               </button>
             </div>
@@ -61,7 +36,7 @@ function TimesField({ times, onChange }: { times: string[]; onChange: (t: string
       )}
 
       <button onClick={addCustom} className="flex items-center gap-1.5 px-1 text-[14px] font-semibold text-rose">
-        <Plus size={16} /> Başka saat ekle
+        <Plus size={16} /> {sorted.length ? 'Başka saat ekle' : 'Saat ekle'}
       </button>
       <p className="px-1 text-[12px] text-faint">Saate ya da dakikaya dokunarak değiştirebilirsin (dakikalar 15'er).</p>
     </div>

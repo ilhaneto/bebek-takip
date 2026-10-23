@@ -5,7 +5,7 @@ import { fmtDate } from '../lib/dates'
 import { useTodayMeds } from '../lib/useTodayMeds'
 import { downloadFile, medsToIcs } from '../lib/ics'
 import { DEFAULT_REMIND, WEEK, firstDueFrom, isDueOn, remindLabel, scheduleLabel, scheduleOf } from '../lib/schedule'
-import { Button, Card, Chip, Empty, Fab, IconBadge, IconButton, Input, Label, PageHeader, SectionTitle, Sheet, useOpenFromQuickAdd } from '../components/ui'
+import { Button, Card, Chip, Empty, Fab, IconBadge, IconButton, Input, Label, PageHeader, SectionTitle, Sheet, TimeSelect, useOpenFromQuickAdd } from '../components/ui'
 
 type RepeatType = Schedule['type']
 const REMIND_OPTIONS = [0, 15, 30, 60]
@@ -50,15 +50,8 @@ function TimesField({ times, onChange }: { times: string[]; onChange: (t: string
       {sorted.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {sorted.map(t => (
-            <div key={t} className="flex items-center gap-1 rounded-2xl border border-line bg-surface-2 pl-3 pr-1">
-              <input
-                type="time"
-                value={t}
-                aria-label="Saati değiştir"
-                onChange={e => e.target.value && onChange(sorted.map(x => (x === t ? e.target.value : x)))}
-                style={{ minHeight: 0 }}
-                className="h-10 w-[92px] bg-transparent text-[16px] font-semibold tabular-nums text-ink outline-none"
-              />
+            <div key={t} className="flex items-center gap-1 rounded-2xl border border-line bg-surface-2 pl-2 pr-1">
+              <TimeSelect compact value={t} onChange={v => onChange([...new Set(sorted.map(x => (x === t ? v : x)))].sort())} />
               <button onClick={() => toggle(t)} aria-label={`${t} kaldır`} className="grid size-8 place-items-center rounded-full text-faint active:bg-surface">
                 <X size={16} />
               </button>
@@ -70,7 +63,7 @@ function TimesField({ times, onChange }: { times: string[]; onChange: (t: string
       <button onClick={addCustom} className="flex items-center gap-1.5 px-1 text-[14px] font-semibold text-rose">
         <Plus size={16} /> Başka saat ekle
       </button>
-      <p className="px-1 text-[12px] text-faint">Saate dokunarak değiştirebilirsin.</p>
+      <p className="px-1 text-[12px] text-faint">Saate ya da dakikaya dokunarak değiştirebilirsin (dakikalar 15'er).</p>
     </div>
   )
 }

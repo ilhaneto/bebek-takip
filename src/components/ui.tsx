@@ -113,6 +113,34 @@ export function Textarea({ className, ...p }: TextareaHTMLAttributes<HTMLTextAre
   return <textarea {...p} className={cx(field, 'resize-none', className)} />
 }
 
+const HOURS = Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0'))
+const QUARTERS = ['00', '15', '30', '45']
+
+/**
+ * Saat seçimi: saat ve 15'er dakikalık iki liste. iOS'ta her biri çark olarak açılır.
+ * (input type=time'ın step özelliğini iOS çarkı yok saydığı için seçim kutusu kullanılır.)
+ * Eski kayıttaki 15'in katı olmayan dakika da listede tutulur ki değer kaybolmasın.
+ */
+export function TimeSelect({ value, onChange, compact }: { value: string; onChange: (v: string) => void; compact?: boolean }) {
+  const [h = '09', m = '00'] = value.split(':')
+  const minutes = QUARTERS.includes(m) ? QUARTERS : [...QUARTERS, m].sort()
+  const sel = cx(
+    'appearance-none bg-transparent text-center font-semibold tabular-nums text-ink outline-none',
+    compact ? 'h-10 w-8 text-[16px]' : 'h-12 w-12 text-[18px]',
+  )
+  return (
+    <div className={cx('inline-flex items-center', !compact && 'rounded-2xl border border-line bg-surface-2 px-2')}>
+      <select aria-label="Saat" value={h} onChange={e => onChange(`${e.target.value}:${m}`)} className={sel}>
+        {HOURS.map(x => <option key={x} value={x}>{x}</option>)}
+      </select>
+      <span className="font-semibold text-muted">:</span>
+      <select aria-label="Dakika" value={m} onChange={e => onChange(`${h}:${e.target.value}`)} className={sel}>
+        {minutes.map(x => <option key={x} value={x}>{x}</option>)}
+      </select>
+    </div>
+  )
+}
+
 export function Label({ children }: { children: ReactNode }) {
   return <span className="block px-1 pb-1.5 text-[13px] font-medium text-muted">{children}</span>
 }

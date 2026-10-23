@@ -5,7 +5,7 @@ import { MOODS } from '../lib/symptoms'
 import { usePregnancyDates } from '../lib/baby'
 import WeekCard from '../components/WeekCard'
 import { db } from '../db'
-import { fmtDateTime, pregnancyWeek } from '../lib/dates'
+import { fmtDateTime, nowLocal, pregnancyWeek } from '../lib/dates'
 import { useTodayMeds } from '../lib/useTodayMeds'
 import { Card, Empty, IconBadge, SectionTitle } from '../components/ui'
 
@@ -18,7 +18,7 @@ export default function Home() {
   const nav = useNavigate()
   const dates = usePregnancyDates()
   const next = useLiveQuery(
-    () => db.appointments.where('at').above(new Date().toISOString().slice(0, 16)).first(),
+    () => db.appointments.where('at').aboveOrEqual(nowLocal()).first(),
     [],
   )
   const { loaded, today, dueToday, total, takenCount, isTaken, toggle } = useTodayMeds()

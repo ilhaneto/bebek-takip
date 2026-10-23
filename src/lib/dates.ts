@@ -5,6 +5,11 @@ export function ymd(d = new Date()): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
+/** Yerel saate göre "YYYY-MM-DDTHH:mm" (randevu "at" alanıyla karşılaştırmak için; toISOString UTC verir) */
+export function nowLocal(d = new Date()): string {
+  return `${ymd(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 export function fmtDateTime(local: string): string {
   return new Date(local).toLocaleString('tr-TR', {
     day: 'numeric', month: 'long', weekday: 'short', hour: '2-digit', minute: '2-digit',

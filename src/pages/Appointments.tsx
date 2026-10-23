@@ -3,7 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { CalendarHeart, CalendarPlus, ChevronDown, MapPin, Stethoscope, Trash2 } from 'lucide-react'
 import { db, type Appointment } from '../db'
 import { appointmentToIcs, downloadFile } from '../lib/ics'
-import { Button, Card, Empty, Fab, Input, Label, PageHeader, SectionTitle, Sheet, Textarea, useOpenFromQuickAdd } from '../components/ui'
+import { nowLocal } from '../lib/dates'
+import { Button, Card, Empty, Fab, Input, Label, PageHeader, SectionTitle, Sheet, Textarea, TimeSelect, useOpenFromQuickAdd } from '../components/ui'
 
 const empty = { title: '', doctor: '', place: '', at: '', questions: '', result: '' }
 
@@ -57,17 +58,21 @@ function Item({ a, past, open, onToggle }: { a: Appointment; past?: boolean; ope
 export default function Appointments() {
   const all = useLiveQuery(() => db.appointments.orderBy('at').toArray(), []) ?? []
   const [form, setForm] = useState(empty)
+  const [date, setDate] = useState('')
+  const [time, setTime] = useState('10:00')
+  const [error, setError] = useState<string | null>(null)
   const [sheet, setSheet] = useState(false)
   useOpenFromQuickAdd(() => setSheet(true))
   const [open, setOpen] = useState<number | null>(null)
-  const now = new Date().toISOString().slice(0, 16)
+  const now = nowLocal()
   const upcoming = all.filter(a => a.at >= now)
   const past = all.filter(a => a.at < now).reverse()
 
   async function add() {
-    if (!form.title.trim() || !form.at) return
-    await db.appointments.add({ ...form } as never)
-    setForm(empty); setSheet(false)
+    if (!form.title.trim()) return setError('Randevuya bir başlık yaz.')
+    if (!date) return setError('Randevu tarihini seç.')
+    await db.appointments.add({ ...form, at: `${date}T${time}` } as never)
+    setForm(empty); setDate(''); setTime('10:00'); setError(null); setSheet(false)
   }
 
   const set = (k: keyof typeof empty) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value })
@@ -92,13 +97,17 @@ export default function Appointments() {
 
       <Sheet open={sheet} onClose={() => setSheet(false)} title="Yeni randevu">
         <div className="space-y-3">
-          <div><Label>Başlık</Label><Input placeholder="20. hafta ultrason" value={form.title} onChange={set('title')} /></div>
-          <div><Label>Tarih ve saat</Label><Input type="datetime-local" value={form.at} onChange={set('at')} /></div>
+          <div><Label>Başlık</Label><Input placeholder="20. hafta ultrason" value={form.title} onChange={e => { set('title')(e); setError(null) }} /></div>
+          <div className="grid grid-cols-[1fr_auto] gap-2">
+            <div><Label>Tarih</Label><Input type="date" value={date} onChange={e => { setDate(e.target.value); setError(null) }} /></div>
+            <div><Label>Saat</Label><TimeSelect value={time} onChange={setTime} /></div>
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <div><Label>Doktor</Label><Input placeholder="Dr. …" value={form.doctor} onChange={set('doctor')} /></div>
             <div><Label>Yer</Label><Input placeholder="Hastane" value={form.place} onChange={set('place')} /></div>
           </div>
           <div><Label>Doktora sorulacaklar</Label><Textarea rows={3} value={form.questions} onChange={set('questions')} /></div>
+          {error && <p className="rounded-2xl bg-amber/10 p-3 text-[14px] font-medium text-amber">{error}</p>}
           <Button className="w-full mt-2" onClick={add}>Kaydet</Button>
         </div>
       </Sheet>

@@ -18,7 +18,6 @@ function MedCard({ m, today, taken, onToggle, onEdit }: { m: Med; today: string;
         <IconBadge icon={Pill} tone={due ? 'rose' : 'violet'} />
         <button className="flex-1 min-w-0 text-left" onClick={onEdit}>
           <p className="font-semibold text-[16px] truncate">{m.name}</p>
-          {m.dose && <p className="text-[13px] text-muted truncate">{m.dose}</p>}
         </button>
         <IconButton
           icon={CalendarPlus}
@@ -64,7 +63,6 @@ export default function Meds() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Med | null>(null)
   const [name, setName] = useState('')
-  const [dose, setDose] = useState('')
   const [times, setTimes] = useState('09:00')
   const [repeat, setRepeat] = useState<RepeatType>('daily')
   const [days, setDays] = useState<number[]>([])
@@ -78,7 +76,7 @@ export default function Meds() {
   const takenCount = logs.filter(l => dueToday.some(m => m.id === l.medId)).length
 
   function reset() {
-    setName(''); setDose(''); setTimes('09:00'); setRepeat('daily'); setDays([]); setEvery('2'); setStart(today); setRemind(DEFAULT_REMIND)
+    setName(''); setTimes('09:00'); setRepeat('daily'); setDays([]); setEvery('2'); setStart(today); setRemind(DEFAULT_REMIND)
   }
 
   function openNew() {
@@ -87,7 +85,7 @@ export default function Meds() {
 
   function openEdit(m: Med) {
     const s = scheduleOf(m)
-    setName(m.name); setDose(m.dose); setTimes(m.times.join(' ')); setRepeat(s.type)
+    setName(m.name); setTimes(m.times.join(' ')); setRepeat(s.type)
     setDays(s.type === 'weekly' ? s.days : [])
     setEvery(s.type === 'interval' ? String(s.every) : '2')
     setStart(s.type === 'interval' ? s.start : today)
@@ -114,7 +112,7 @@ export default function Meds() {
       if (!(n >= 1 && n <= 60)) return alert('1 ile 60 arasında bir gün sayısı gir.')
       schedule = { type: 'interval', every: n, start }
     }
-    const data = { name: name.trim(), dose: dose.trim(), times: list.sort(), schedule, remindBefore: remind }
+    const data = { name: name.trim(), times: list.sort(), schedule, remindBefore: remind }
     if (editing) {
       // Geçmiş "alındı" kayıtları kendi ad/doz bilgisini taşıdığı için değişiklik yalnızca bundan sonrasını etkiler.
       await db.meds.update(editing.id, { ...data, rev: (editing.rev ?? 0) + 1 })
@@ -128,7 +126,7 @@ export default function Meds() {
   async function toggle(m: Med, time: string) {
     const existing = logs.find(l => l.medId === m.id && l.time === time)
     if (existing) await db.medLogs.delete(existing.id)
-    else await db.medLogs.add({ medId: m.id, date: today, time, takenAt: Date.now(), name: m.name, dose: m.dose } as never)
+    else await db.medLogs.add({ medId: m.id, date: today, time, takenAt: Date.now(), name: m.name } as never)
   }
 
   async function resume(m: Med) {
@@ -170,7 +168,7 @@ export default function Meds() {
           {ended.map((m, i) => (
             <div key={m.id} className={`flex items-center gap-3 px-3 py-2.5 ${i ? 'border-t border-line' : ''}`}>
               <div className="flex-1 min-w-0">
-                <p className="font-medium truncate text-muted">{m.name} {m.dose}</p>
+                <p className="font-medium truncate text-muted">{m.name}</p>
                 {m.endedAt && <p className="text-[12px] text-faint">{fmtDate(m.endedAt)} tarihinde bırakıldı</p>}
               </div>
               <Button variant="soft" className="min-h-9 px-3 text-[13px]" onClick={() => resume(m)}>Geri al</Button>
@@ -194,10 +192,9 @@ export default function Meds() {
 
       <Sheet open={open} onClose={() => setOpen(false)} title={editing ? 'İlacı düzenle' : 'Yeni ilaç'}>
         <div className="space-y-4">
-          <div><Label>Ad</Label><Input placeholder="Levotiron" value={name} onChange={e => setName(e.target.value)} /></div>
-          <div className="grid grid-cols-2 gap-2">
-            <div><Label>Doz</Label><Input placeholder="150 mcg" value={dose} onChange={e => setDose(e.target.value)} /></div>
-            <div><Label>Saat(ler)</Label><Input inputMode="numeric" placeholder="07:00" value={times} onChange={e => setTimes(e.target.value)} /></div>
+          <div><Label>Ad ve doz</Label><Input placeholder="Levotiron 150 mcg" value={name} onChange={e => setName(e.target.value)} /></div>
+          <div>
+            <div><Label>Saat(ler) — birden fazlaysa boşlukla ayır</Label><Input inputMode="numeric" placeholder="07:00" value={times} onChange={e => setTimes(e.target.value)} /></div>
           </div>
 
           <div>

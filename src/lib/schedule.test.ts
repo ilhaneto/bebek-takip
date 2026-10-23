@@ -2,7 +2,7 @@ import { expect, test } from 'vitest'
 import type { Med } from '../db'
 import { firstDueFrom, isDueOn, rrule, scheduleLabel } from './schedule'
 
-const med = (schedule?: Med['schedule']): Med => ({ id: 1, name: 'Levotiron', dose: '150', times: ['07:00'], active: true, schedule })
+const med = (schedule?: Med['schedule']): Med => ({ id: 1, name: 'Levotiron 150', times: ['07:00'], active: true, schedule })
 
 // 2026-10-26 Pazartesi
 test('haftalık: Pzt/Çar/Cum', () => {

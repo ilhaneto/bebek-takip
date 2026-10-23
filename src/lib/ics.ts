@@ -27,7 +27,7 @@ export function medsToIcs(meds: Med[], startDate: string): string {
       `DTSTART:${stamp(first + 'T' + t)}`,
       'DURATION:PT10M',
       rrule(m),
-      `SUMMARY:${esc(`💊 ${m.name} ${m.dose}`.trim())}`,
+      `SUMMARY:${esc(`💊 ${m.name}`)}`,
       ...alarm(before, before ? `${m.name} ${t} – ${remindLabel(before)}` : `${m.name} ilacı zamanı`),
       'END:VEVENT',
     ].join('\r\n'))

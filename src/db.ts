@@ -7,13 +7,14 @@ export type Schedule =
   | { type: 'interval'; every: number; start: string }
 
 export interface Med {
-  id: number; name: string; dose: string; times: string[]; active: boolean
+  id: number; name: string; times: string[]; active: boolean
+  dose?: string // eski alan; v2'de ada taşındı
   schedule?: Schedule // eski kayıtlarda yok = her gün
   remindBefore?: number // dakika; yoksa 60
   endedAt?: string // ilaç bırakıldıysa tarih; kayıt ve geçmiş saklanır
   rev?: number // her düzenlemede artar, takvim SEQUENCE değeri
 }
-/** name/dose alındığı andaki değerlerdir; ilaç sonradan düzenlense de geçmiş değişmez. */
+/** name alındığı andaki ilaç adıdır; ilaç sonradan düzenlense de geçmiş değişmez. dose yalnızca eski kayıtlarda var. */
 export interface MedLog { id: number; medId: number; date: string; time: string; takenAt: number; name?: string; dose?: string }
 export interface Note { id: number; text: string; tag: string; createdAt: number }
 export interface Appointment {
@@ -41,5 +42,19 @@ db.version(1).stores({
   weights: '++id, date',
   settings: 'key',
 })
+
+/** Doz alanı kaldırıldı: dozu ilaç adının sonuna ekler. */
+export function mergeDose<T extends { name: string; dose?: string }>(m: T): T {
+  if (!m.dose?.trim()) return m
+  const { dose, ...rest } = m
+  return { ...rest, name: `${m.name} ${dose.trim()}` } as T
+}
+
+db.version(2).stores({}).upgrade(tx =>
+  tx.table('meds').toCollection().modify((m: Med) => {
+    if (m.dose?.trim()) m.name = `${m.name} ${m.dose.trim()}`
+    delete m.dose
+  }),
+)
 
 export const TABLES = ['meds', 'medLogs', 'notes', 'appointments', 'weights', 'settings'] as const

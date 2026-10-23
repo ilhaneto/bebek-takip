@@ -1,4 +1,4 @@
-import { db, TABLES } from '../db'
+import { db, mergeDose, TABLES, type Med } from '../db'
 import { downloadFile } from './ics'
 
 export async function exportBackup() {
@@ -12,7 +12,10 @@ export async function importBackup(file: File) {
   await db.transaction('rw', TABLES.map(t => db.table(t)), async () => {
     for (const t of TABLES) {
       await db.table(t).clear()
-      if (Array.isArray(data[t])) await db.table(t).bulkAdd(data[t])
+      if (!Array.isArray(data[t])) continue
+      // Doz alanlı eski yedeklerde dozu ada taşı
+      const rows = t === 'meds' ? (data[t] as Med[]).map(mergeDose) : data[t]
+      await db.table(t).bulkAdd(rows)
     }
   })
 }

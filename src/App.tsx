@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { HashRouter, Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
-import { BookOpen, CalendarHeart, HeartPulse, House, NotebookPen, Pill, Plus, Scale, type LucideIcon } from 'lucide-react'
+import { Activity, BookOpen, CalendarHeart, HeartPulse, House, NotebookPen, Pill, Plus, Scale, type LucideIcon } from 'lucide-react'
 import Home from './pages/Home'
 import Meds from './pages/Meds'
 import Notes from './pages/Notes'
 import Appointments from './pages/Appointments'
 import Measures from './pages/Measures'
+import Symptoms from './pages/Symptoms'
 import Settings from './pages/Settings'
 import Section from './pages/Section'
 import { IconBadge, Sheet } from './components/ui'
@@ -17,7 +18,8 @@ const tabs: { to: string; label: string; icon: LucideIcon }[] = [
   { to: '/defter', label: 'Defter', icon: BookOpen },
 ]
 
-const quickAdd: { label: string; hint: string; icon: LucideIcon; tone: 'rose' | 'violet' | 'mint' | 'amber'; to: string }[] = [
+const quickAdd: { label: string; hint: string; icon: LucideIcon; tone: 'rose' | 'violet' | 'mint' | 'amber'; to: string; wide?: boolean }[] = [
+  { label: 'Bugün nasılsın?', hint: 'Semptom ve genel his', icon: Activity, tone: 'rose', to: '/saglik/semptomlar?gorunum=gunluk', wide: true },
   { label: 'Ölçüm', hint: 'Kilo, tansiyon, TSH', icon: Scale, tone: 'mint', to: '/saglik/olcumler?yeni=1' },
   { label: 'Not', hint: 'Soru, his, hatırlatma', icon: NotebookPen, tone: 'amber', to: '/defter/notlar?yeni=1' },
   { label: 'Randevu', hint: 'Kontrol, test, ultrason', icon: CalendarHeart, tone: 'violet', to: '/takvim/randevular?yeni=1' },
@@ -56,6 +58,7 @@ function Shell() {
             path="/saglik/:seg?"
             element={<Section base="saglik" title="Sağlık" segments={[
               { value: 'ilaclar', label: 'İlaçlar', element: <Meds /> },
+              { value: 'semptomlar', label: 'Semptomlar', element: <Symptoms /> },
               { value: 'olcumler', label: 'Ölçümler', element: <Measures /> },
             ]} />}
           />
@@ -105,7 +108,7 @@ function Shell() {
             <button
               key={q.label}
               onClick={() => { setAdding(false); nav(q.to) }}
-              className="flex flex-col items-start gap-3 rounded-3xl border border-line bg-surface-2 p-4 text-left active:scale-[0.98] transition"
+              className={`flex items-start gap-3 rounded-3xl border border-line bg-surface-2 p-4 text-left active:scale-[0.98] transition ${q.wide ? 'col-span-2 flex-row items-center' : 'flex-col'}`}
             >
               <IconBadge icon={q.icon} tone={q.tone} />
               <div>

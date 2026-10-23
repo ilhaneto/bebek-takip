@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { CalendarHeart, Check, ChevronRight, MapPin, Pill, Settings } from 'lucide-react'
+import { Activity, CalendarHeart, Check, ChevronRight, MapPin, Pill, Settings } from 'lucide-react'
+import { MOODS } from '../lib/symptoms'
 import { db } from '../db'
 import { fmtDateTime, pregnancyWeek } from '../lib/dates'
 import { useTodayMeds } from '../lib/useTodayMeds'
@@ -44,7 +45,9 @@ export default function Home() {
     () => db.appointments.where('at').above(new Date().toISOString().slice(0, 16)).first(),
     [],
   )
-  const { loaded, dueToday, total, takenCount, isTaken, toggle } = useTodayMeds()
+  const { loaded, today, dueToday, total, takenCount, isTaken, toggle } = useTodayMeds()
+  const todaySym = useLiveQuery(() => db.symptoms.where('date').equals(today).first(), [today])
+  const topSym = Object.entries(todaySym?.scores ?? {}).sort((a, b) => b[1] - a[1]).slice(0, 3)
 
   const preg = due ? pregnancyWeek(due) : null
   const dateLabel = new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -97,6 +100,23 @@ export default function Home() {
           </div>
         </Card>
       )}
+
+      <Card onClick={() => nav('/saglik/semptomlar?gorunum=gunluk')}>
+        <div className="flex items-center gap-3">
+          {todaySym?.mood
+            ? <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-violet/15 text-[24px]">{MOODS[todaySym.mood - 1]}</span>
+            : <IconBadge icon={Activity} tone="rose" />}
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold">Bugün nasılsın?</p>
+            <p className="truncate text-[13px] text-muted">
+              {topSym.length
+                ? topSym.map(([n, v]) => `${n} ${v}`).join(' · ')
+                : todaySym?.mood ? 'Semptom girilmedi' : 'Semptom ve genel his kaydet'}
+            </p>
+          </div>
+          <ChevronRight size={18} className="text-faint" />
+        </div>
+      </Card>
 
       <SectionTitle right={total > 0 && <span className="text-[13px] font-semibold text-muted">{takenCount}/{total}</span>}>
         Bugünün ilaçları

@@ -35,6 +35,13 @@ export interface Measurement {
   note?: string
 }
 export interface Setting { key: string; value: string }
+/** Günde tek kayıt. scores: semptom adı → 1 (hafif) … 5 (çok şiddetli); olmayan = yok. */
+export interface SymptomDay {
+  id: number; date: string
+  mood?: number // 1 (çok kötü) … 5 (çok iyi)
+  scores: Record<string, number>
+  note?: string
+}
 
 export const db = new Dexie('bebektakip') as Dexie & {
   meds: EntityTable<Med, 'id'>
@@ -43,6 +50,7 @@ export const db = new Dexie('bebektakip') as Dexie & {
   appointments: EntityTable<Appointment, 'id'>
   weights: EntityTable<Weight, 'id'>
   measurements: EntityTable<Measurement, 'id'>
+  symptoms: EntityTable<SymptomDay, 'id'>
   settings: EntityTable<Setting, 'key'>
 }
 
@@ -77,4 +85,6 @@ db.version(3).stores({ measurements: '++id, type, date' }).upgrade(async tx => {
   await tx.table('measurements').bulkAdd(weights.map(weightToMeasurement))
 })
 
-export const TABLES = ['meds', 'medLogs', 'notes', 'appointments', 'weights', 'measurements', 'settings'] as const
+db.version(4).stores({ symptoms: '++id, &date' })
+
+export const TABLES = ['meds', 'medLogs', 'notes', 'appointments', 'weights', 'measurements', 'symptoms', 'settings'] as const

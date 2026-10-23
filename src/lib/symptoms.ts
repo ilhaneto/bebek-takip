@@ -1,10 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type SymptomDay } from '../db'
 
-export const DEFAULT_SYMPTOMS = [
-  'Bulantı', 'Kusma', 'Yorgunluk', 'Baş ağrısı', 'Kasık ağrısı', 'Göğüs hassasiyeti',
-  'Uykusuzluk', 'Baş dönmesi', 'Mide yanması', 'Kabızlık', 'Bel ağrısı', 'Ödem',
-]
+export const DEFAULT_SYMPTOMS = ['Bulantı', 'Kusma', 'Yorgunluk', 'Kasık ağrısı', 'Kabızlık', 'Bel ağrısı', 'Ödem']
 
 export const MOODS = ['😣', '😕', '😐', '🙂', '😊']
 export const SCORE_LABELS = ['', 'Hafif', 'Az', 'Orta', 'Belirgin', 'Çok şiddetli']

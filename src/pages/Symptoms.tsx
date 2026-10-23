@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ChevronLeft, ChevronRight, Plus, Settings2, Stethoscope, X } from 'lucide-react'
@@ -99,17 +99,63 @@ function DayEditor({ date, setDate, list, onEditList }: { date: string; setDate:
   )
 }
 
+const CH = { W: 320, H: 84, L: 14, R: 6, T: 6, B: 6 }
+
+/** Tek semptomun günlere göre şiddet grafiği. null = o gün kayıt yok (çizgi kesilir), 0 = kayıt var ama semptom yok. */
+function SeverityChart({ values, sel, onSel, mood }: { values: (number | null)[]; sel: number | null; onSel: (i: number | null) => void; mood?: boolean }) {
+  const { W, H, L, R, T, B } = CH
+  const n = values.length
+  const x = (i: number) => L + (n === 1 ? 0 : (i * (W - L - R)) / (n - 1))
+  const y = (v: number) => T + (1 - v / 5) * (H - T - B)
+  const base = mood ? 1 : 0
+  // Kayıt olmayan günlerde çizgiyi böl
+  const segs: { i: number; v: number }[][] = []
+  values.forEach((v, i) => {
+    if (v === null) return
+    const last = segs[segs.length - 1]
+    if (last && last[last.length - 1].i === i - 1) last.push({ i, v })
+    else segs.push([{ i, v }])
+  })
+  const color = mood ? '#a78bfa' : '#ff7a9c'
+  const step = (W - L - R) / Math.max(1, n - 1)
+  return (
+    // Seçim kalıcı: dokunmatikte parmak kalkınca pointerleave tetiklendiği için orada temizlenmez
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full select-none">
+      {[1, 3, 5].map(g => (
+        <g key={g}>
+          <line x1={L} x2={W - R} y1={y(g)} y2={y(g)} stroke="#2a2635" strokeDasharray={g === 5 ? '' : '2 4'} />
+          <text x={0} y={y(g) + 3} fontSize="9" fill="#6b6578">{g}</text>
+        </g>
+      ))}
+      {segs.map((s, k) => (
+        <g key={k}>
+          {s.length > 1 && (
+            <path
+              d={`${s.map((p, j) => `${j ? 'L' : 'M'}${x(p.i)},${y(p.v)}`).join(' ')} L${x(s[s.length - 1].i)},${y(base)} L${x(s[0].i)},${y(base)} Z`}
+              fill={color} fillOpacity="0.12"
+            />
+          )}
+          <path d={s.map((p, j) => `${j ? 'L' : 'M'}${x(p.i)},${y(p.v)}`).join(' ')} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        </g>
+      ))}
+      {sel !== null && <line x1={x(sel)} x2={x(sel)} y1={T} y2={H - B} stroke="#9a93a8" strokeWidth="1" />}
+      {values.map((v, i) => v !== null && (v > 0 || i === sel) && (
+        <circle key={i} cx={x(i)} cy={y(v)} r={i === sel ? 4.5 : n > 14 ? 2.5 : 3.5} fill={color} stroke="#15131c" strokeWidth="2" />
+      ))}
+      {/* Dokunma alanları: noktadan geniş */}
+      {values.map((_, i) => (
+        <rect key={i} x={x(i) - step / 2} y={0} width={step} height={H} fill="transparent" onClick={() => onSel(sel === i ? null : i)} onPointerEnter={e => e.pointerType === 'mouse' && onSel(i)} />
+      ))}
+    </svg>
+  )
+}
+
 function History({ list, onPickDay }: { list: string[]; onPickDay: (d: string) => void }) {
   const [range, setRange] = useState(14)
+  const [sel, setSel] = useState<number | null>(null)
   const today = ymd()
   const days = lastDays(today, range)
   const rows = useLiveQuery(() => db.symptoms.where('date').between(days[0], today, true, true).toArray(), [days[0], today])
-  const scroller = useRef<HTMLDivElement>(null)
-  // En yeni günler sağda; açılışta oraya kaydır
-  useEffect(() => {
-    const el = scroller.current
-    if (el) el.scrollLeft = el.scrollWidth
-  }, [range, rows === undefined])
   if (rows === undefined) return null
 
   const byDate = new Map<string, SymptomDay>(rows.map(r => [r.date, r]))
@@ -117,81 +163,81 @@ function History({ list, onPickDay }: { list: string[]; onPickDay: (d: string) =
   // Önce listedeki sırayla, sonra listeden çıkarılmış ama puanı olanlar
   const names = [...list.filter(n => used.has(n)), ...[...used].filter(n => !list.includes(n))]
   const hasMood = rows.some(r => r.mood)
-  const daysWith = (n: string) => rows.filter(r => r.scores[n]).length
+  const series = (n: string) => days.map(d => (byDate.has(d) ? byDate.get(d)!.scores[n] ?? 0 : null))
+  const moodSeries = days.map(d => byDate.get(d)?.mood ?? null)
+  const selDay = sel !== null ? days[sel] : null
+
+  const stats = (vals: (number | null)[]) => {
+    const on = vals.filter((v): v is number => !!v)
+    return { days: on.length, avg: on.length ? on.reduce((a, b) => a + b, 0) / on.length : 0, max: on.length ? Math.max(...on) : 0 }
+  }
+  const fmt = (v: number) => v.toLocaleString('tr-TR', { maximumFractionDigits: 1 })
+  const axis = (
+    <div className="flex justify-between pl-[14px] pr-[6px] text-[10px] text-faint">
+      <span>{fmtDate(days[0])}</span>
+      <span>{fmtDate(days[Math.floor(days.length / 2)])}</span>
+      <span>Bugün</span>
+    </div>
+  )
 
   return (
     <div className="space-y-3">
       <div className="flex gap-2">
-        {[7, 14, 30].map(r => <Chip key={r} active={range === r} onClick={() => setRange(r)}>{r} gün</Chip>)}
+        {[7, 14, 30].map(r => <Chip key={r} active={range === r} onClick={() => { setRange(r); setSel(null) }}>{r} gün</Chip>)}
       </div>
 
-      {names.length === 0 && !hasMood ? (
+      {/* Seçili gün bilgisi; grafiklerdeki dikey çizgiyle eşleşir */}
+      <Card className="flex min-h-14 items-center justify-between py-2.5">
+        {selDay ? (
+          <>
+            <div>
+              <p className="font-semibold capitalize">{dayLabel(selDay, today)} · {fmtDate(selDay)}</p>
+              <p className="text-[12px] text-muted">
+                {byDate.has(selDay)
+                  ? Object.entries(byDate.get(selDay)!.scores).map(([k, v]) => `${k} ${v}`).join(' · ') || 'Semptom yok'
+                  : 'Kayıt yok'}
+              </p>
+            </div>
+            <Button variant="soft" className="min-h-9 px-3 text-[13px]" onClick={() => onPickDay(selDay)}>Düzenle</Button>
+          </>
+        ) : (
+          <p className="text-[13px] text-muted">Grafikte bir güne dokun, o günün puanları burada görünür.</p>
+        )}
+      </Card>
+
+      {names.length === 0 && !hasMood && (
         <Card><Empty icon={Stethoscope} title="Bu aralıkta kayıt yok" text="Günlük sekmesinden semptom puanı girince burada görünür." /></Card>
-      ) : (
-        <Card className="overflow-hidden p-0">
-          <div ref={scroller} className="overflow-x-auto [scrollbar-width:none]">
-            <table className="border-separate border-spacing-0 text-[12px]">
-              <thead>
-                <tr>
-                  <th className="sticky left-0 z-10 bg-surface px-3 py-2 text-left font-medium text-faint">Semptom</th>
-                  {days.map(d => (
-                    <th key={d} className="px-0.5 py-2 font-medium">
-                      <button onClick={() => onPickDay(d)} className={`flex w-7 flex-col items-center rounded-lg py-0.5 ${d === today ? 'bg-rose/15 text-rose' : 'text-faint'}`}>
-                        <span className="text-[10px] uppercase">{new Date(d + 'T00:00:00').toLocaleDateString('tr-TR', { weekday: 'narrow' })}</span>
-                        <span className="text-[12px] font-semibold">{+d.slice(8)}</span>
-                      </button>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {hasMood && (
-                  <tr>
-                    <td className="sticky left-0 z-10 border-t border-line/70 bg-surface px-3 py-1.5 font-medium">Genel his</td>
-                    {days.map(d => {
-                      const m = byDate.get(d)?.mood
-                      return (
-                        <td key={d} className="border-t border-line/70 px-0.5 py-1 text-center">
-                          <button onClick={() => onPickDay(d)} className="w-7 text-[16px] leading-7">{m ? MOODS[m - 1] : <span className="text-line">·</span>}</button>
-                        </td>
-                      )
-                    })}
-                  </tr>
-                )}
-                {names.map(n => (
-                  <tr key={n}>
-                    <td className="sticky left-0 z-10 max-w-[120px] border-t border-line/70 bg-surface px-3 py-1.5">
-                      <p className="truncate font-medium">{n}</p>
-                      <p className="text-[10px] text-faint">{daysWith(n)} gün</p>
-                    </td>
-                    {days.map(d => {
-                      const v = byDate.get(d)?.scores[n]
-                      return (
-                        <td key={d} className="border-t border-line/70 px-0.5 py-1">
-                          <button
-                            onClick={() => onPickDay(d)}
-                            className="grid size-7 place-items-center rounded-md text-[11px] font-bold text-white"
-                            style={{ background: v ? scoreColor(v) : 'rgb(42 38 53 / 0.5)' }}
-                          >
-                            {v ?? ''}
-                          </button>
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      )}
+
+      {hasMood && (
+        <Card>
+          <div className="mb-1 flex items-baseline justify-between">
+            <p className="font-semibold">Genel his</p>
+            <p className="text-[12px] text-muted">{sel !== null && moodSeries[sel] ? MOODS[moodSeries[sel]! - 1] : `ort. ${fmt(stats(moodSeries).avg)}`}</p>
           </div>
+          <SeverityChart values={moodSeries} sel={sel} onSel={setSel} mood />
+          {axis}
         </Card>
       )}
 
-      <div className="flex items-center gap-1.5 px-1 text-[11px] text-faint">
-        <span>Hafif</span>
-        {[1, 2, 3, 4, 5].map(v => <span key={v} className="size-4 rounded" style={{ background: scoreColor(v) }} />)}
-        <span>Çok şiddetli</span>
-        <span className="ml-auto">Güne dokun → düzenle</span>
-      </div>
+      {names.map(n => {
+        const vals = series(n)
+        const s = stats(vals)
+        return (
+          <Card key={n}>
+            <div className="mb-1 flex items-baseline justify-between gap-2">
+              <p className="truncate font-semibold">{n}</p>
+              <p className="shrink-0 text-[12px] text-muted">
+                {sel !== null
+                  ? vals[sel] === null ? 'kayıt yok' : vals[sel] ? `${vals[sel]} · ${SCORE_LABELS[vals[sel]!]}` : 'yok'
+                  : `${s.days} gün · ort. ${fmt(s.avg)} · en çok ${s.max}`}
+              </p>
+            </div>
+            <SeverityChart values={vals} sel={sel} onSel={setSel} />
+            {axis}
+          </Card>
+        )
+      })}
     </div>
   )
 }

@@ -1,22 +1,23 @@
 import { HashRouter, NavLink, Route, Routes } from 'react-router-dom'
+import { CalendarHeart, House, NotebookPen, Pill, Scale, type LucideIcon } from 'lucide-react'
 import Home from './pages/Home'
 import Meds from './pages/Meds'
 import Notes from './pages/Notes'
 import Appointments from './pages/Appointments'
 import Weight from './pages/Weight'
 
-const tabs = [
-  { to: '/', label: 'Ana', icon: '🏠' },
-  { to: '/ilac', label: 'İlaç', icon: '💊' },
-  { to: '/randevu', label: 'Randevu', icon: '🩺' },
-  { to: '/not', label: 'Not', icon: '📝' },
-  { to: '/kilo', label: 'Kilo', icon: '⚖️' },
+const tabs: { to: string; label: string; icon: LucideIcon }[] = [
+  { to: '/', label: 'Bugün', icon: House },
+  { to: '/ilac', label: 'İlaç', icon: Pill },
+  { to: '/randevu', label: 'Randevu', icon: CalendarHeart },
+  { to: '/not', label: 'Notlar', icon: NotebookPen },
+  { to: '/kilo', label: 'Kilo', icon: Scale },
 ]
 
 export default function App() {
   return (
     <HashRouter>
-      <main className="mx-auto max-w-md px-4 pt-4 pb-28">
+      <main className="mx-auto max-w-md px-4 pt-3 pb-32">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/ilac" element={<Meds />} />
@@ -26,19 +27,27 @@ export default function App() {
         </Routes>
       </main>
       <nav
-        className="fixed bottom-0 inset-x-0 border-t"
-        style={{ background: 'var(--card)', borderColor: 'var(--line)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+        className="fixed inset-x-0 bottom-0 z-40 px-4"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 10px)' }}
       >
-        <div className="mx-auto max-w-md grid grid-cols-5">
-          {tabs.map(t => (
+        <div className="mx-auto max-w-md grid grid-cols-5 rounded-[26px] border border-line/80 bg-surface/80 backdrop-blur-xl p-1.5 shadow-2xl shadow-black/50">
+          {tabs.map(({ to, label, icon: Icon }) => (
             <NavLink
-              key={t.to}
-              to={t.to}
-              className="flex flex-col items-center py-2 text-xs"
-              style={({ isActive }) => ({ color: isActive ? 'var(--brand)' : 'var(--muted)', fontWeight: isActive ? 700 : 400 })}
+              key={to}
+              to={to}
+              end={to === '/'}
+              className={({ isActive }) =>
+                `flex flex-col items-center gap-0.5 rounded-[20px] py-2 text-[11px] font-medium transition ${
+                  isActive ? 'bg-surface-2 text-ink' : 'text-faint'
+                }`
+              }
             >
-              <span className="text-xl">{t.icon}</span>
-              {t.label}
+              {({ isActive }) => (
+                <>
+                  <Icon size={21} strokeWidth={isActive ? 2.4 : 1.9} className={isActive ? 'text-rose' : ''} />
+                  {label}
+                </>
+              )}
             </NavLink>
           ))}
         </div>

@@ -22,7 +22,17 @@ export interface Appointment {
   at: string // yerel "YYYY-MM-DDTHH:mm"
   questions: string; result: string
 }
+/** Eski kilo tablosu; v3'te measurements'a kopyalandı, silinmedi. */
 export interface Weight { id: number; date: string; kg: number }
+export type MeasureType = 'kilo' | 'tansiyon' | 'seker'
+export interface Measurement {
+  id: number; type: MeasureType; date: string
+  time?: string // "HH:mm"
+  value: number // kilo: kg, tansiyon: büyük, şeker: mg/dL
+  value2?: number // tansiyon: küçük
+  tag?: string // şeker: Açlık / Tokluk…
+  note?: string
+}
 export interface Setting { key: string; value: string }
 
 export const db = new Dexie('bebektakip') as Dexie & {
@@ -31,6 +41,7 @@ export const db = new Dexie('bebektakip') as Dexie & {
   notes: EntityTable<Note, 'id'>
   appointments: EntityTable<Appointment, 'id'>
   weights: EntityTable<Weight, 'id'>
+  measurements: EntityTable<Measurement, 'id'>
   settings: EntityTable<Setting, 'key'>
 }
 
@@ -57,4 +68,12 @@ db.version(2).stores({}).upgrade(tx =>
   }),
 )
 
-export const TABLES = ['meds', 'medLogs', 'notes', 'appointments', 'weights', 'settings'] as const
+export const weightToMeasurement = (w: Weight): Omit<Measurement, 'id'> => ({ type: 'kilo', date: w.date, value: w.kg })
+
+// Kilo kayıtları ortak ölçüm tablosuna kopyalanır; eski tablo yedek olarak kalır.
+db.version(3).stores({ measurements: '++id, type, date' }).upgrade(async tx => {
+  const weights: Weight[] = await tx.table('weights').toArray()
+  await tx.table('measurements').bulkAdd(weights.map(weightToMeasurement))
+})
+
+export const TABLES = ['meds', 'medLogs', 'notes', 'appointments', 'weights', 'measurements', 'settings'] as const

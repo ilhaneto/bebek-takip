@@ -5,7 +5,7 @@ import Home from './pages/Home'
 import Meds from './pages/Meds'
 import Notes from './pages/Notes'
 import Appointments from './pages/Appointments'
-import Weight from './pages/Weight'
+import Measures from './pages/Measures'
 import Settings from './pages/Settings'
 import Section from './pages/Section'
 import { IconBadge, Sheet } from './components/ui'
@@ -18,7 +18,7 @@ const tabs: { to: string; label: string; icon: LucideIcon }[] = [
 ]
 
 const quickAdd: { label: string; hint: string; icon: LucideIcon; tone: 'rose' | 'violet' | 'mint' | 'amber'; to: string }[] = [
-  { label: 'Ölçüm', hint: 'Kilo', icon: Scale, tone: 'mint', to: '/saglik/olcumler' },
+  { label: 'Ölçüm', hint: 'Kilo, tansiyon, şeker', icon: Scale, tone: 'mint', to: '/saglik/olcumler?yeni=1' },
   { label: 'Not', hint: 'Soru, his, hatırlatma', icon: NotebookPen, tone: 'amber', to: '/defter/notlar?yeni=1' },
   { label: 'Randevu', hint: 'Kontrol, test, ultrason', icon: CalendarHeart, tone: 'violet', to: '/takvim/randevular?yeni=1' },
   { label: 'İlaç', hint: 'Yeni ilaç veya vitamin', icon: Pill, tone: 'rose', to: '/saglik/ilaclar?yeni=1' },
@@ -56,7 +56,7 @@ function Shell() {
             path="/saglik/:seg?"
             element={<Section base="saglik" title="Sağlık" segments={[
               { value: 'ilaclar', label: 'İlaçlar', element: <Meds /> },
-              { value: 'olcumler', label: 'Ölçümler', element: <Weight /> },
+              { value: 'olcumler', label: 'Ölçümler', element: <Measures /> },
             ]} />}
           />
           <Route

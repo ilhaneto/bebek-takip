@@ -24,9 +24,11 @@ export default function Onboarding() {
   return (
     <div className="mx-auto flex min-h-[90vh] max-w-md flex-col justify-center gap-5 px-4 py-8">
       <div className="text-center">
-        <div className="mx-auto mb-4 grid size-28 place-items-center rounded-full bg-gradient-to-br from-rose/25 to-violet/25 text-[56px] shadow-2xl shadow-rose/20">
-          {b?.emoji ?? '🌱'}
-        </div>
+        <img
+          src={`${import.meta.env.BASE_URL}icon-512.png`}
+          alt="Ayşe ve Bebeği"
+          className="mx-auto mb-4 size-32 rounded-[30px] shadow-2xl shadow-rose/30"
+        />
         <h1 className="text-[28px] font-bold tracking-tight">Hoş geldin 💕</h1>
         <p className="mt-1 text-[15px] text-muted">Haftanı ve bebeğinin büyüklüğünü hesaplamak için bir tarih gir.</p>
       </div>

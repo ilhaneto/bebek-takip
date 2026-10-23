@@ -2,10 +2,11 @@ import type { Appointment, Med } from '../db'
 import { DEFAULT_REMIND, firstDueFrom, remindLabel, rrule } from './schedule'
 
 const stamp = (local: string) => local.replace(/[-:]/g, '').slice(0, 13) + '00'
-const esc = (s: string) => s.replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n')
+const nowStamp = () => new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z'
+const esc =(s: string) => s.replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n')
 
 function wrap(events: string[]): string {
-  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//BebekTakip//TR', ...events, 'END:VCALENDAR'].join('\r\n')
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//BebekTakip//TR', 'METHOD:PUBLISH', ...events, 'END:VCALENDAR'].join('\r\n')
 }
 
 function alarm(minutesBefore: number, text: string): string[] {
@@ -19,8 +20,10 @@ export function medsToIcs(meds: Med[], startDate: string): string {
     const before = m.remindBefore ?? DEFAULT_REMIND
     return m.times.map((t, i) => [
       'BEGIN:VEVENT',
+      // Aynı UID + artan SEQUENCE: takvim bunu aynı etkinliğin güncel hali olarak görebilir.
       `UID:med-${m.id}-${i}@bebektakip`,
-      `DTSTAMP:${stamp(startDate + 'T00:00')}Z`,
+      `SEQUENCE:${m.rev ?? 0}`,
+      `DTSTAMP:${nowStamp()}`,
       `DTSTART:${stamp(first + 'T' + t)}`,
       'DURATION:PT10M',
       rrule(m),
@@ -36,7 +39,7 @@ export function appointmentToIcs(a: Appointment): string {
   const ev = [
     'BEGIN:VEVENT',
     `UID:appt-${a.id}@bebektakip`,
-    `DTSTAMP:${stamp(a.at)}Z`,
+    `DTSTAMP:${nowStamp()}`,
     `DTSTART:${stamp(a.at)}`,
     'DURATION:PT1H',
     `SUMMARY:${esc(`🩺 ${a.title}`)}`,

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Bell, CalendarPlus, Check, Pencil, Pill, Repeat, Trash2 } from 'lucide-react'
+import { Archive, Bell, CalendarPlus, Check, Pencil, Pill, Repeat } from 'lucide-react'
 import { db, type Med, type Schedule } from '../db'
 import { fmtDate, ymd } from '../lib/dates'
 import { downloadFile, medsToIcs } from '../lib/ics'
@@ -56,7 +56,9 @@ function MedCard({ m, today, taken, onToggle, onEdit }: { m: Med; today: string;
 }
 
 export default function Meds() {
-  const meds = useLiveQuery(() => db.meds.toArray(), []) ?? []
+  const allMeds = useLiveQuery(() => db.meds.toArray(), []) ?? []
+  const meds = allMeds.filter(m => m.active)
+  const ended = allMeds.filter(m => !m.active)
   const today = ymd()
   const logs = useLiveQuery(() => db.medLogs.where('date').equals(today).toArray(), [today]) ?? []
   const [open, setOpen] = useState(false)
@@ -93,10 +95,10 @@ export default function Meds() {
     setEditing(m); setOpen(true)
   }
 
-  async function remove() {
-    if (!editing || !confirm(`${editing.name} silinsin mi?`)) return
-    await db.medLogs.where('medId').equals(editing.id).delete()
-    await db.meds.delete(editing.id)
+  /** İlacı silmez, bırakılanlara taşır; geçmiş "alındı" kayıtları saklanır. */
+  async function stop() {
+    if (!editing || !confirm(`${editing.name} bırakılsın mı?\nGeçmiş kayıtlar saklanır. Takvim'deki hatırlatmaları Takvim'den silmen gerekir.`)) return
+    await db.meds.update(editing.id, { active: false, endedAt: today })
     setOpen(false)
   }
 
@@ -114,20 +116,23 @@ export default function Meds() {
     }
     const data = { name: name.trim(), dose: dose.trim(), times: list.sort(), schedule, remindBefore: remind }
     if (editing) {
-      await db.meds.update(editing.id, data)
-      const changed = editing.times.join() !== data.times.join() || JSON.stringify(scheduleOf(editing)) !== JSON.stringify(schedule)
-        || (editing.remindBefore ?? DEFAULT_REMIND) !== remind
-      if (changed) alert('Kaydedildi. Bu ilacı daha önce Takvim\'e eklediysen eski etkinliği Takvim\'den sil ve karttaki takvim simgesiyle yeniden ekle.')
+      // Geçmiş "alındı" kayıtları kendi ad/doz bilgisini taşıdığı için değişiklik yalnızca bundan sonrasını etkiler.
+      await db.meds.update(editing.id, { ...data, rev: (editing.rev ?? 0) + 1 })
+      alert('Kaydedildi. Değişiklik bugünden itibaren geçerli, geçmiş kayıtlar aynen duruyor.\n\nTakvim\'i güncellemek için karttaki takvim simgesine bas. Takvim\'de eski hatırlatma da görünmeye devam ederse eskisini sil.')
     } else {
       await db.meds.add({ ...data, active: true } as never)
     }
     reset(); setEditing(null); setOpen(false)
   }
 
-  async function toggle(medId: number, time: string) {
-    const existing = logs.find(l => l.medId === medId && l.time === time)
+  async function toggle(m: Med, time: string) {
+    const existing = logs.find(l => l.medId === m.id && l.time === time)
     if (existing) await db.medLogs.delete(existing.id)
-    else await db.medLogs.add({ medId, date: today, time, takenAt: Date.now() } as never)
+    else await db.medLogs.add({ medId: m.id, date: today, time, takenAt: Date.now(), name: m.name, dose: m.dose } as never)
+  }
+
+  async function resume(m: Med) {
+    await db.meds.update(m.id, { active: true, endedAt: undefined, rev: (m.rev ?? 0) + 1 })
   }
 
   const card = (m: Med) => (
@@ -136,7 +141,7 @@ export default function Meds() {
       m={m}
       today={today}
       taken={t => logs.some(l => l.medId === m.id && l.time === t)}
-      onToggle={t => toggle(m.id, t)}
+      onToggle={t => toggle(m, t)}
       onEdit={() => openEdit(m)}
     />
   )
@@ -158,6 +163,21 @@ export default function Meds() {
 
       {others.length > 0 && <SectionTitle>Bugün olmayanlar</SectionTitle>}
       {others.map(card)}
+
+      {ended.length > 0 && <SectionTitle>Bırakılanlar</SectionTitle>}
+      {ended.length > 0 && (
+        <Card className="p-1.5">
+          {ended.map((m, i) => (
+            <div key={m.id} className={`flex items-center gap-3 px-3 py-2.5 ${i ? 'border-t border-line' : ''}`}>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate text-muted">{m.name} {m.dose}</p>
+                {m.endedAt && <p className="text-[12px] text-faint">{fmtDate(m.endedAt)} tarihinde bırakıldı</p>}
+              </div>
+              <Button variant="soft" className="min-h-9 px-3 text-[13px]" onClick={() => resume(m)}>Geri al</Button>
+            </div>
+          ))}
+        </Card>
+      )}
 
       {meds.length > 0 && (
         <>
@@ -235,8 +255,8 @@ export default function Meds() {
 
           <Button className="w-full" onClick={save}>{editing ? 'Değişiklikleri kaydet' : 'Kaydet'}</Button>
           {editing && (
-            <Button variant="ghost" className="w-full text-rose" onClick={remove}>
-              <Trash2 size={18} /> İlacı sil
+            <Button variant="ghost" className="w-full text-rose" onClick={stop}>
+              <Archive size={18} /> İlacı bırak (geçmiş saklanır)
             </Button>
           )}
         </div>

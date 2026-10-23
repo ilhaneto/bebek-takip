@@ -10,8 +10,11 @@ export interface Med {
   id: number; name: string; dose: string; times: string[]; active: boolean
   schedule?: Schedule // eski kayıtlarda yok = her gün
   remindBefore?: number // dakika; yoksa 60
+  endedAt?: string // ilaç bırakıldıysa tarih; kayıt ve geçmiş saklanır
+  rev?: number // her düzenlemede artar, takvim SEQUENCE değeri
 }
-export interface MedLog { id: number; medId: number; date: string; time: string; takenAt: number }
+/** name/dose alındığı andaki değerlerdir; ilaç sonradan düzenlense de geçmiş değişmez. */
+export interface MedLog { id: number; medId: number; date: string; time: string; takenAt: number; name?: string; dose?: string }
 export interface Note { id: number; text: string; tag: string; createdAt: number }
 export interface Appointment {
   id: number; title: string; doctor: string; place: string

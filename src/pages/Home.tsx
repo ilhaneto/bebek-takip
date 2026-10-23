@@ -48,7 +48,7 @@ export default function Home() {
   )
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const dueToday = meds.filter(m => isDueOn(m, today))
+  const dueToday = meds.filter(m => m.active && isDueOn(m, today))
   const total = dueToday.reduce((n, m) => n + m.times.length, 0)
   const takenCount = logs.filter(l => dueToday.some(m => m.id === l.medId)).length
   const preg = due ? pregnancyWeek(due) : null

@@ -5,6 +5,7 @@ import { CalendarHeart, ChevronRight, Download, Pill, Upload } from 'lucide-reac
 import { db } from '../db'
 import { fmtDateTime, pregnancyWeek, ymd } from '../lib/dates'
 import { exportBackup, importBackup } from '../lib/backup'
+import { isDueOn } from '../lib/schedule'
 import { Card, IconBadge, Input, Label, SectionTitle } from '../components/ui'
 
 function Ring({ value, children }: { value: number; children: React.ReactNode }) {
@@ -47,7 +48,9 @@ export default function Home() {
   )
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const total = meds.reduce((n, m) => n + m.times.length, 0)
+  const dueToday = meds.filter(m => isDueOn(m, today))
+  const total = dueToday.reduce((n, m) => n + m.times.length, 0)
+  const takenCount = logs.filter(l => dueToday.some(m => m.id === l.medId)).length
   const preg = due ? pregnancyWeek(due) : null
   const dateLabel = new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })
 
@@ -92,10 +95,10 @@ export default function Home() {
         <Card onClick={() => nav('/ilac')}>
           <IconBadge icon={Pill} tone="rose" />
           <p className="text-[13px] text-muted mt-3">Bugünün ilaçları</p>
-          <p className="text-[22px] font-bold">{total === 0 ? '—' : `${logs.length}/${total}`}</p>
+          <p className="text-[22px] font-bold">{total === 0 ? '—' : `${takenCount}/${total}`}</p>
           {total > 0 && (
             <div className="mt-2 h-1.5 rounded-full bg-line overflow-hidden">
-              <div className="h-full rounded-full bg-gradient-to-r from-rose to-violet transition-all" style={{ width: `${(logs.length / total) * 100}%` }} />
+              <div className="h-full rounded-full bg-gradient-to-r from-rose to-violet transition-all" style={{ width: `${(takenCount / total) * 100}%` }} />
             </div>
           )}
         </Card>

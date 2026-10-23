@@ -1,6 +1,16 @@
 import Dexie, { type EntityTable } from 'dexie'
 
-export interface Med { id: number; name: string; dose: string; times: string[]; active: boolean }
+/** Haftanın günleri JS getDay() ile: 0 = Pazar … 6 = Cumartesi */
+export type Schedule =
+  | { type: 'daily' }
+  | { type: 'weekly'; days: number[] }
+  | { type: 'interval'; every: number; start: string }
+
+export interface Med {
+  id: number; name: string; dose: string; times: string[]; active: boolean
+  schedule?: Schedule // eski kayıtlarda yok = her gün
+  remindBefore?: number // dakika; yoksa 60
+}
 export interface MedLog { id: number; medId: number; date: string; time: string; takenAt: number }
 export interface Note { id: number; text: string; tag: string; createdAt: number }
 export interface Appointment {

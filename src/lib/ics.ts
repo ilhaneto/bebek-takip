@@ -1,4 +1,5 @@
 import type { Appointment, Med } from '../db'
+import { DEFAULT_REMIND, firstDueFrom, remindLabel, rrule } from './schedule'
 
 const stamp = (local: string) => local.replace(/[-:]/g, '').slice(0, 13) + '00'
 const esc = (s: string) => s.replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n')
@@ -11,21 +12,23 @@ function alarm(minutesBefore: number, text: string): string[] {
   return ['BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc(text)}`, `TRIGGER:-PT${minutesBefore}M`, 'END:VALARM']
 }
 
-/** Her ilaç saati için günlük tekrar eden, anında hatırlatan takvim olayı. */
+/** Her ilaç saati için ilacın tekrar planına göre yinelenen takvim olayı. */
 export function medsToIcs(meds: Med[], startDate: string): string {
-  const events = meds.filter(m => m.active).flatMap(m =>
-    m.times.map((t, i) => [
+  const events = meds.filter(m => m.active).flatMap(m => {
+    const first = firstDueFrom(m, startDate)
+    const before = m.remindBefore ?? DEFAULT_REMIND
+    return m.times.map((t, i) => [
       'BEGIN:VEVENT',
       `UID:med-${m.id}-${i}@bebektakip`,
       `DTSTAMP:${stamp(startDate + 'T00:00')}Z`,
-      `DTSTART:${stamp(startDate + 'T' + t)}`,
+      `DTSTART:${stamp(first + 'T' + t)}`,
       'DURATION:PT10M',
-      'RRULE:FREQ=DAILY',
+      rrule(m),
       `SUMMARY:${esc(`💊 ${m.name} ${m.dose}`.trim())}`,
-      ...alarm(0, `${m.name} ilacı zamanı`),
+      ...alarm(before, before ? `${m.name} ${t} – ${remindLabel(before)}` : `${m.name} ilacı zamanı`),
       'END:VEVENT',
-    ].join('\r\n')),
-  )
+    ].join('\r\n'))
+  })
   return wrap(events)
 }
 
@@ -39,8 +42,7 @@ export function appointmentToIcs(a: Appointment): string {
     `SUMMARY:${esc(`🩺 ${a.title}`)}`,
     `LOCATION:${esc(a.place)}`,
     `DESCRIPTION:${esc(a.doctor ? `Doktor: ${a.doctor}\n${a.questions}` : a.questions)}`,
-    ...alarm(1440, 'Yarın randevu var'),
-    ...alarm(60, 'Randevuya 1 saat var'),
+    ...alarm(1440, `Yarın randevu: ${a.title}`),
     'END:VEVENT',
   ].join('\r\n')
   return wrap([ev])

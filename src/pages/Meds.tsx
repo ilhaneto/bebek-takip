@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Archive, Bell, CalendarPlus, Check, Pencil, Pill, Repeat } from 'lucide-react'
+import { Archive, Bell, CalendarPlus, Check, Pencil, Pill, Plus, Repeat, X } from 'lucide-react'
 import { db, type Med, type Schedule } from '../db'
 import { fmtDate } from '../lib/dates'
 import { useTodayMeds } from '../lib/useTodayMeds'
@@ -9,6 +9,71 @@ import { Button, Card, Chip, Empty, Fab, IconBadge, IconButton, Input, Label, Pa
 
 type RepeatType = Schedule['type']
 const REMIND_OPTIONS = [0, 15, 30, 60]
+
+const PRESETS = [
+  { label: 'Sabah', time: '08:00' },
+  { label: 'Öğle', time: '13:00' },
+  { label: 'Akşam', time: '19:00' },
+  { label: 'Gece', time: '22:00' },
+]
+
+/** Saat seçimi: hazır saatlere dokun ya da iOS saat çarkıyla kendi saatini ekle. Klavyeyle yazmak gerekmez. */
+function TimesField({ times, onChange }: { times: string[]; onChange: (t: string[]) => void }) {
+  const sorted = [...new Set(times)].sort()
+  const toggle = (t: string) => onChange(sorted.includes(t) ? sorted.filter(x => x !== t) : [...sorted, t].sort())
+  const addCustom = () => {
+    // Listede olmayan ilk tam saati öner; kullanıcı çarktan değiştirir
+    const free = Array.from({ length: 24 }, (_, h) => `${String((h + 9) % 24).padStart(2, '0')}:00`).find(t => !sorted.includes(t)) ?? '12:00'
+    onChange([...sorted, free].sort())
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-4 gap-1.5">
+        {PRESETS.map(p => {
+          const on = sorted.includes(p.time)
+          return (
+            <button
+              key={p.time}
+              onClick={() => toggle(p.time)}
+              aria-label={`${p.label} ${p.time}`}
+              aria-pressed={on}
+              className={`flex flex-col items-center rounded-2xl border py-2 transition active:scale-95 ${on ? 'border-rose/50 bg-rose/15 text-rose' : 'border-line bg-surface-2 text-muted'}`}
+            >
+              <span className="text-[13px] font-semibold">{p.label}</span>
+              <span className="text-[12px] tabular-nums opacity-80">{p.time}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {sorted.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {sorted.map(t => (
+            <div key={t} className="flex items-center gap-1 rounded-2xl border border-line bg-surface-2 pl-3 pr-1">
+              <input
+                type="time"
+                value={t}
+                aria-label="Saati değiştir"
+                onChange={e => e.target.value && onChange(sorted.map(x => (x === t ? e.target.value : x)))}
+                style={{ minHeight: 0 }}
+                className="h-10 w-[92px] bg-transparent text-[16px] font-semibold tabular-nums text-ink outline-none"
+              />
+              <button onClick={() => toggle(t)} aria-label={`${t} kaldır`} className="grid size-8 place-items-center rounded-full text-faint active:bg-surface">
+                <X size={16} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <button onClick={addCustom} className="flex items-center gap-1.5 px-1 text-[14px] font-semibold text-rose">
+        <Plus size={16} /> Başka saat ekle
+      </button>
+      <p className="px-1 text-[12px] text-faint">Saate dokunarak değiştirebilirsin.</p>
+    </div>
+  )
+}
 
 function MedCard({ m, today, taken, onToggle, onEdit }: { m: Med; today: string; taken: (t: string) => boolean; onToggle: (t: string) => void; onEdit: () => void }) {
   const due = isDueOn(m, today)
@@ -60,7 +125,8 @@ export default function Meds() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Med | null>(null)
   const [name, setName] = useState('')
-  const [times, setTimes] = useState('09:00')
+  const [times, setTimes] = useState<string[]>(['09:00'])
+  const [error, setError] = useState<string | null>(null)
   const [repeat, setRepeat] = useState<RepeatType>('daily')
   const [days, setDays] = useState<number[]>([])
   const [every, setEvery] = useState('2')
@@ -70,7 +136,7 @@ export default function Meds() {
   const others = meds.filter(m => !isDueOn(m, today))
 
   function reset() {
-    setName(''); setTimes('09:00'); setRepeat('daily'); setDays([]); setEvery('2'); setStart(today); setRemind(DEFAULT_REMIND)
+    setName(''); setTimes(['09:00']); setError(null); setRepeat('daily'); setDays([]); setEvery('2'); setStart(today); setRemind(DEFAULT_REMIND)
   }
 
   function openNew() {
@@ -80,7 +146,7 @@ export default function Meds() {
 
   function openEdit(m: Med) {
     const s = scheduleOf(m)
-    setName(m.name); setTimes(m.times.join(' ')); setRepeat(s.type)
+    setName(m.name); setTimes(m.times); setError(null); setRepeat(s.type)
     setDays(s.type === 'weekly' ? s.days : [])
     setEvery(s.type === 'interval' ? String(s.every) : '2')
     setStart(s.type === 'interval' ? s.start : today)
@@ -96,18 +162,20 @@ export default function Meds() {
   }
 
   async function save() {
-    const list = times.split(/[ ,]+/).filter(t => /^\d{1,2}[:.]\d{2}$/.test(t)).map(t => t.replace('.', ':').padStart(5, '0'))
-    if (!name.trim() || !list.length) return
+    const list = [...new Set(times.filter(t => /^\d{2}:\d{2}$/.test(t)))].sort()
+    // Eksik bilgide sessizce kalmak yerine ne eksik olduğunu göster
+    if (!name.trim()) return setError('İlacın adını yaz.')
+    if (!list.length) return setError('En az bir saat seç.')
     let schedule: Schedule = { type: 'daily' }
     if (repeat === 'weekly') {
-      if (!days.length) return alert('En az bir gün seç.')
+      if (!days.length) return setError('Tekrar için en az bir gün seç.')
       schedule = { type: 'weekly', days }
     } else if (repeat === 'interval') {
       const n = parseInt(every)
-      if (!(n >= 1 && n <= 60)) return alert('1 ile 60 arasında bir gün sayısı gir.')
+      if (!(n >= 1 && n <= 60)) return setError('Kaç günde bir için 1 ile 60 arasında bir sayı gir.')
       schedule = { type: 'interval', every: n, start }
     }
-    const data = { name: name.trim(), times: list.sort(), schedule, remindBefore: remind }
+    const data = { name: name.trim(), times: list, schedule, remindBefore: remind }
     if (editing) {
       // Geçmiş "alındı" kayıtları kendi ad/doz bilgisini taşıdığı için değişiklik yalnızca bundan sonrasını etkiler.
       await db.meds.update(editing.id, { ...data, rev: (editing.rev ?? 0) + 1 })
@@ -184,7 +252,8 @@ export default function Meds() {
         <div className="space-y-4">
           <div><Label>Ad ve doz</Label><Input placeholder="Levotiron 150 mcg" value={name} onChange={e => setName(e.target.value)} /></div>
           <div>
-            <div><Label>Saat(ler) — birden fazlaysa boşlukla ayır</Label><Input inputMode="numeric" placeholder="07:00" value={times} onChange={e => setTimes(e.target.value)} /></div>
+            <Label>Saat(ler)</Label>
+            <TimesField times={times} onChange={t => { setTimes(t); setError(null) }} />
           </div>
 
           <div>
@@ -240,6 +309,7 @@ export default function Meds() {
             </div>
           </div>
 
+          {error && <p className="rounded-2xl bg-amber/10 p-3 text-[14px] font-medium text-amber">{error}</p>}
           <Button className="w-full" onClick={save}>{editing ? 'Değişiklikleri kaydet' : 'Kaydet'}</Button>
           {editing && (
             <Button variant="ghost" className="w-full text-rose" onClick={stop}>

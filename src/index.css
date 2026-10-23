@@ -28,6 +28,9 @@ body {
   -webkit-tap-highlight-color: transparent;
   padding-top: env(safe-area-inset-top);
   overscroll-behavior-y: none;
+  /* iOS Ana Ekran uygulamasında içerik kısa kalınca 100vh durum çubuğu kadar eksik sayılıyor ve
+     alt menü yukarı kalkıyor; sayfa her zaman en az tam ekran boyu olsun */
+  min-height: calc(100vh + env(safe-area-inset-top));
 }
 
 /* Arka planda hafif renk ışıması */

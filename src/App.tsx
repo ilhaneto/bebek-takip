@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { HashRouter, Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
-import { Activity, BookOpen, CalendarHeart, HeartPulse, House, NotebookPen, Pill, Plus, Scale, type LucideIcon } from 'lucide-react'
+import { Activity, BookOpen, CalendarHeart, HeartPulse, LayoutDashboard, NotebookPen, Pill, Plus, Scale, type LucideIcon } from 'lucide-react'
 import Home from './pages/Home'
 import Meds from './pages/Meds'
 import Notes from './pages/Notes'
@@ -15,7 +15,7 @@ import { useBadgeSync } from './lib/badge'
 import { IconBadge, Sheet } from './components/ui'
 
 const tabs: { to: string; label: string; icon: LucideIcon }[] = [
-  { to: '/', label: 'Bugün', icon: House },
+  { to: '/', label: 'Özet', icon: LayoutDashboard },
   { to: '/saglik', label: 'Sağlık', icon: HeartPulse },
   { to: '/takvim', label: 'Takvim', icon: CalendarHeart },
   { to: '/defter', label: 'Defter', icon: BookOpen },

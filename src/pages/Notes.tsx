@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Check, ListChecks, NotebookPen, Plus, Search, Trash2, X } from 'lucide-react'
 import { db, type ListItem, type Note } from '../db'
-import { TEMPLATES, linesToItems, progress, sortItems } from '../lib/lists'
+import { linesToItems, progress, sortItems } from '../lib/lists'
 import { Button, Card, Chip, Empty, Fab, IconButton, Input, Label, PageHeader, Sheet, Textarea, useOpenFromQuickAdd } from '../components/ui'
 
 const TAGS = ['Genel', 'Soru', 'Semptom', 'Hatırlatma', 'Hazırlık']
@@ -189,16 +189,6 @@ function Creator({ onDone }: { onDone: () => void }) {
         <Textarea rows={6} placeholder="Ne düşünüyorsun?" value={text} onChange={e => setText(e.target.value)} />
       ) : (
         <>
-          <div>
-            <Label>Hazır şablonlar</Label>
-            <div className="flex flex-wrap gap-2">
-              {TEMPLATES.map(t => (
-                <Chip key={t.title} active={text === t.title} onClick={() => { setText(t.title); setLines(t.items.join('\n')); setTag('Hazırlık') }}>
-                  {t.emoji} {t.title}
-                </Chip>
-              ))}
-            </div>
-          </div>
           <div><Label>Başlık</Label><Input placeholder="Ör. Bu hafta alınacaklar" value={text} onChange={e => setText(e.target.value)} /></div>
           <div><Label>Maddeler (her satır bir madde)</Label><Textarea rows={6} placeholder={'Süt\nBez\nTermometre'} value={lines} onChange={e => setLines(e.target.value)} /></div>
         </>

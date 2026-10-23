@@ -11,6 +11,7 @@ import Settings from './pages/Settings'
 import Section from './pages/Section'
 import Onboarding from './pages/Onboarding'
 import { usePregnancyDates } from './lib/baby'
+import { useBadgeSync } from './lib/badge'
 import { IconBadge, Sheet } from './components/ui'
 
 const tabs: { to: string; label: string; icon: LucideIcon }[] = [
@@ -51,6 +52,7 @@ function Shell() {
   const nav = useNavigate()
   const [adding, setAdding] = useState(false)
   const dates = usePregnancyDates()
+  useBadgeSync(dates?.due)
 
   // İlk açılışta (tarih girilmemişse) önce son adet tarihi istenir
   if (dates === undefined) return null

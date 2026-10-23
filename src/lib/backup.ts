@@ -4,7 +4,7 @@ import { downloadFile } from './ics'
 export async function exportBackup() {
   const data: Record<string, unknown[]> = {}
   for (const t of TABLES) data[t] = await db.table(t).toArray()
-  downloadFile(`bebek-takip-yedek-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(data), 'application/json')
+  downloadFile(`ilhanbaby-yedek-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(data), 'application/json')
 }
 
 /** Eski sürüm yedeklerini güncel yapıya çevirir. */

@@ -13,8 +13,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],
       manifest: {
-        name: 'Bebek Takip',
-        short_name: 'Bebek Takip',
+        name: 'ilhanbaby',
+        short_name: 'ilhanbaby',
         lang: 'tr',
         display: 'standalone',
         start_url: './',

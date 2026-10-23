@@ -1,14 +1,17 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Download, Upload } from 'lucide-react'
+import { BellDot, ChevronLeft, ChevronRight, Download, Upload } from 'lucide-react'
 import { savePregnancyDates, usePregnancyDates } from '../lib/baby'
 import { exportBackup, importBackup } from '../lib/backup'
+import { disableBadge, enableBadge, useBadgeSetting } from '../lib/badge'
 import { Card, IconBadge, Input, Label, SectionTitle } from '../components/ui'
 
 export default function Settings() {
   const nav = useNavigate()
   const dates = usePregnancyDates()
   const fileRef = useRef<HTMLInputElement>(null)
+  const badgeOn = useBadgeSetting()
+  const [badgeMsg, setBadgeMsg] = useState<string | null>(null)
 
   return (
     <div className="space-y-3">
@@ -31,6 +34,30 @@ export default function Settings() {
         </div>
         <p className="px-1 text-[12px] text-faint">
           Biri değişince diğeri 280 gün farkla güncellenir. Doktor ultrasona göre farklı bir doğum tarihi verdiyse doğum tarihini değiştirmen yeterli.
+        </p>
+      </Card>
+
+      <SectionTitle>Uygulama simgesi</SectionTitle>
+      <Card>
+        <div className="flex items-center gap-3">
+          <IconBadge icon={BellDot} tone="rose" />
+          <div className="flex-1">
+            <p className="font-semibold">Simgede kalan günü göster</p>
+            <p className="text-[13px] text-muted">Ana ekrandaki simgenin köşesinde doğuma kalan gün yazar</p>
+          </div>
+          <button
+            role="switch"
+            aria-checked={!!badgeOn}
+            aria-label="Simgede kalan günü göster"
+            onClick={async () => setBadgeMsg(badgeOn ? (await disableBadge(), null) : await enableBadge(dates?.due))}
+            className={`relative h-8 w-14 shrink-0 rounded-full transition ${badgeOn ? 'bg-gradient-to-r from-rose to-violet' : 'bg-line'}`}
+          >
+            <span className={`absolute top-1 size-6 rounded-full bg-white shadow transition-all ${badgeOn ? 'left-7' : 'left-1'}`} />
+          </button>
+        </div>
+        {badgeMsg && <p className="mt-3 rounded-2xl bg-amber/10 p-3 text-[13px] text-amber">{badgeMsg}</p>}
+        <p className="mt-3 px-1 text-[12px] text-faint">
+          iOS bunun için bildirim izni ister. Sayı uygulamayı her açtığında güncellenir; birkaç gün açmazsan eski sayı görünebilir.
         </p>
       </Card>
 
@@ -66,7 +93,7 @@ export default function Settings() {
         }}
       />
 
-      <p className="pt-4 text-center text-[12px] text-faint">Bebek Takip · kişisel kullanım</p>
+      <p className="pt-4 text-center text-[12px] text-faint">ilhanbaby · kişisel kullanım</p>
     </div>
   )
 }

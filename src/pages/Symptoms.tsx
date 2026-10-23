@@ -99,52 +99,57 @@ function DayEditor({ date, setDate, list, onEditList }: { date: string; setDate:
   )
 }
 
-const CH = { W: 320, H: 84, L: 14, R: 6, T: 6, B: 6 }
+/** Koyu zemin için doğrulanmış kategorik renkler; sıra sabit, semptomun listedeki yerine göre atanır. */
+const SERIES_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767']
+const OVERFLOW_COLOR = '#6b6578'
+const MOOD_COLOR = '#9a93a8'
 
-/** Tek semptomun günlere göre şiddet grafiği. null = o gün kayıt yok (çizgi kesilir), 0 = kayıt var ama semptom yok. */
-function SeverityChart({ values, sel, onSel, mood }: { values: (number | null)[]; sel: number | null; onSel: (i: number | null) => void; mood?: boolean }) {
-  const { W, H, L, R, T, B } = CH
-  const n = values.length
+interface Series { name: string; color: string; values: (number | null)[]; dashed?: boolean }
+
+/** Tüm semptomlar tek grafikte. null = o gün kayıt yok (çizgi kesilir), 0 = kayıt var ama semptom yok. */
+function CombinedChart({ series, n, sel, onSel }: { series: Series[]; n: number; sel: number | null; onSel: (i: number | null) => void }) {
+  const W = 320, H = 170, L = 14, R = 8, T = 8, B = 8
   const x = (i: number) => L + (n === 1 ? 0 : (i * (W - L - R)) / (n - 1))
   const y = (v: number) => T + (1 - v / 5) * (H - T - B)
-  const base = mood ? 1 : 0
-  // Kayıt olmayan günlerde çizgiyi böl
-  const segs: { i: number; v: number }[][] = []
-  values.forEach((v, i) => {
-    if (v === null) return
-    const last = segs[segs.length - 1]
-    if (last && last[last.length - 1].i === i - 1) last.push({ i, v })
-    else segs.push([{ i, v }])
-  })
-  const color = mood ? '#a78bfa' : '#ff7a9c'
   const step = (W - L - R) / Math.max(1, n - 1)
+  const segments = (values: (number | null)[]) => {
+    const segs: { i: number; v: number }[][] = []
+    values.forEach((v, i) => {
+      if (v === null) return
+      const last = segs[segs.length - 1]
+      if (last && last[last.length - 1].i === i - 1) last.push({ i, v })
+      else segs.push([{ i, v }])
+    })
+    return segs
+  }
   return (
-    // Seçim kalıcı: dokunmatikte parmak kalkınca pointerleave tetiklendiği için orada temizlenmez
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full select-none">
-      {[1, 3, 5].map(g => (
+      {[0, 1, 2, 3, 4, 5].map(g => (
         <g key={g}>
-          <line x1={L} x2={W - R} y1={y(g)} y2={y(g)} stroke="#2a2635" strokeDasharray={g === 5 ? '' : '2 4'} />
-          <text x={0} y={y(g) + 3} fontSize="9" fill="#6b6578">{g}</text>
-        </g>
-      ))}
-      {segs.map((s, k) => (
-        <g key={k}>
-          {s.length > 1 && (
-            <path
-              d={`${s.map((p, j) => `${j ? 'L' : 'M'}${x(p.i)},${y(p.v)}`).join(' ')} L${x(s[s.length - 1].i)},${y(base)} L${x(s[0].i)},${y(base)} Z`}
-              fill={color} fillOpacity="0.12"
-            />
-          )}
-          <path d={s.map((p, j) => `${j ? 'L' : 'M'}${x(p.i)},${y(p.v)}`).join(' ')} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+          <line x1={L} x2={W - R} y1={y(g)} y2={y(g)} stroke="#2a2635" strokeDasharray={g === 0 ? '' : '2 4'} />
+          {g > 0 && <text x={0} y={y(g) + 3} fontSize="9" fill="#6b6578">{g}</text>}
         </g>
       ))}
       {sel !== null && <line x1={x(sel)} x2={x(sel)} y1={T} y2={H - B} stroke="#9a93a8" strokeWidth="1" />}
-      {values.map((v, i) => v !== null && (v > 0 || i === sel) && (
-        <circle key={i} cx={x(i)} cy={y(v)} r={i === sel ? 4.5 : n > 14 ? 2.5 : 3.5} fill={color} stroke="#15131c" strokeWidth="2" />
+      {series.map(s => (
+        <g key={s.name}>
+          {segments(s.values).map((seg, k) => (
+            <path
+              key={k}
+              d={seg.map((p, j) => `${j ? 'L' : 'M'}${x(p.i)},${y(p.v)}`).join(' ')}
+              fill="none" stroke={s.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"
+              strokeDasharray={s.dashed ? '4 4' : undefined}
+            />
+          ))}
+          {s.values.map((v, i) => v !== null && (v > 0 || i === sel) && (
+            <circle key={i} cx={x(i)} cy={y(v)} r={i === sel ? 4.5 : n > 14 ? 2.5 : 3.5} fill={s.color} stroke="#15131c" strokeWidth="2" />
+          ))}
+        </g>
       ))}
-      {/* Dokunma alanları: noktadan geniş */}
-      {values.map((_, i) => (
-        <rect key={i} x={x(i) - step / 2} y={0} width={step} height={H} fill="transparent" onClick={() => onSel(sel === i ? null : i)} onPointerEnter={e => e.pointerType === 'mouse' && onSel(i)} />
+      {/* Dokunma alanları noktadan geniş; seçim kalıcı (dokunmatikte pointerleave parmak kalkınca tetiklenir) */}
+      {Array.from({ length: n }, (_, i) => (
+        <rect key={i} x={x(i) - step / 2} y={0} width={step} height={H} fill="transparent"
+          onClick={() => onSel(sel === i ? null : i)} onPointerEnter={e => e.pointerType === 'mouse' && onSel(i)} />
       ))}
     </svg>
   )
@@ -153,6 +158,8 @@ function SeverityChart({ values, sel, onSel, mood }: { values: (number | null)[]
 function History({ list, onPickDay }: { list: string[]; onPickDay: (d: string) => void }) {
   const [range, setRange] = useState(14)
   const [sel, setSel] = useState<number | null>(null)
+  // Varsayılandan çevrilenler: genel his ve 8 rengi aşan semptomlar varsayılan kapalı, diğerleri açık
+  const [flipped, setFlipped] = useState<Set<string>>(() => new Set())
   const today = ymd()
   const days = lastDays(today, range)
   const rows = useLiveQuery(() => db.symptoms.where('date').between(days[0], today, true, true).toArray(), [days[0], today])
@@ -160,25 +167,28 @@ function History({ list, onPickDay }: { list: string[]; onPickDay: (d: string) =
 
   const byDate = new Map<string, SymptomDay>(rows.map(r => [r.date, r]))
   const used = new Set(rows.flatMap(r => Object.keys(r.scores)))
-  // Önce listedeki sırayla, sonra listeden çıkarılmış ama puanı olanlar
-  const names = [...list.filter(n => used.has(n)), ...[...used].filter(n => !list.includes(n))]
+  // Renk listedeki sıraya göre sabit; gizleme ya da aralık değişince renkler kaymaz
+  const order = [...list, ...[...used].filter(n => !list.includes(n)).sort()]
+  const colorOf = (name: string) => SERIES_COLORS[order.indexOf(name)] ?? OVERFLOW_COLOR
+  const names = order.filter(n => used.has(n))
   const hasMood = rows.some(r => r.mood)
-  const series = (n: string) => days.map(d => (byDate.has(d) ? byDate.get(d)!.scores[n] ?? 0 : null))
-  const moodSeries = days.map(d => byDate.get(d)?.mood ?? null)
-  const selDay = sel !== null ? days[sel] : null
 
-  const stats = (vals: (number | null)[]) => {
-    const on = vals.filter((v): v is number => !!v)
-    return { days: on.length, avg: on.length ? on.reduce((a, b) => a + b, 0) / on.length : 0, max: on.length ? Math.max(...on) : 0 }
-  }
-  const fmt = (v: number) => v.toLocaleString('tr-TR', { maximumFractionDigits: 1 })
-  const axis = (
-    <div className="flex justify-between pl-[14px] pr-[6px] text-[10px] text-faint">
-      <span>{fmtDate(days[0])}</span>
-      <span>{fmtDate(days[Math.floor(days.length / 2)])}</span>
-      <span>Bugün</span>
-    </div>
-  )
+  const all: Series[] = [
+    ...names.map(n => ({ name: n, color: colorOf(n), values: days.map(d => (byDate.has(d) ? byDate.get(d)!.scores[n] ?? 0 : null)) })),
+    ...(hasMood ? [{ name: 'Genel his', color: MOOD_COLOR, dashed: true, values: days.map(d => byDate.get(d)?.mood ?? null) }] : []),
+  ]
+  const offByDefault = (s: Series) => !!s.dashed || s.color === OVERFLOW_COLOR
+  const hidden = new Set(all.filter(s => offByDefault(s) !== flipped.has(s.name)).map(s => s.name))
+  // Gri (renk dışı) seriler en alta çizilir, renkli çizgileri örtmez
+  const visible = all.filter(s => !hidden.has(s.name)).sort((a, b) => +(b.color === OVERFLOW_COLOR) - +(a.color === OVERFLOW_COLOR))
+  const toggle = (name: string) => setFlipped(h => {
+    const next = new Set(h)
+    if (next.has(name)) next.delete(name)
+    else next.add(name)
+    return next
+  })
+  const selDay = sel !== null ? days[sel] : null
+  const daysWith = (s: Series) => s.values.filter(v => !!v).length
 
   return (
     <div className="space-y-3">
@@ -186,58 +196,59 @@ function History({ list, onPickDay }: { list: string[]; onPickDay: (d: string) =
         {[7, 14, 30].map(r => <Chip key={r} active={range === r} onClick={() => { setRange(r); setSel(null) }}>{r} gün</Chip>)}
       </div>
 
-      {/* Seçili gün bilgisi; grafiklerdeki dikey çizgiyle eşleşir */}
-      <Card className="flex min-h-14 items-center justify-between py-2.5">
-        {selDay ? (
-          <>
-            <div>
-              <p className="font-semibold capitalize">{dayLabel(selDay, today)} · {fmtDate(selDay)}</p>
-              <p className="text-[12px] text-muted">
-                {byDate.has(selDay)
-                  ? Object.entries(byDate.get(selDay)!.scores).map(([k, v]) => `${k} ${v}`).join(' · ') || 'Semptom yok'
-                  : 'Kayıt yok'}
-              </p>
-            </div>
-            <Button variant="soft" className="min-h-9 px-3 text-[13px]" onClick={() => onPickDay(selDay)}>Düzenle</Button>
-          </>
-        ) : (
-          <p className="text-[13px] text-muted">Grafikte bir güne dokun, o günün puanları burada görünür.</p>
-        )}
-      </Card>
-
-      {names.length === 0 && !hasMood && (
+      {all.length === 0 ? (
         <Card><Empty icon={Stethoscope} title="Bu aralıkta kayıt yok" text="Günlük sekmesinden semptom puanı girince burada görünür." /></Card>
-      )}
-
-      {hasMood && (
+      ) : (
         <Card>
-          <div className="mb-1 flex items-baseline justify-between">
-            <p className="font-semibold">Genel his</p>
-            <p className="text-[12px] text-muted">{sel !== null && moodSeries[sel] ? MOODS[moodSeries[sel]! - 1] : `ort. ${fmt(stats(moodSeries).avg)}`}</p>
+          <div className="mb-2 flex min-h-10 items-center justify-between gap-2">
+            {selDay ? (
+              <>
+                <div className="min-w-0">
+                  <p className="font-semibold capitalize">{dayLabel(selDay, today)} · {fmtDate(selDay)}</p>
+                  {!byDate.has(selDay) && <p className="text-[12px] text-muted">Kayıt yok</p>}
+                </div>
+                <Button variant="soft" className="min-h-9 shrink-0 px-3 text-[13px]" onClick={() => onPickDay(selDay)}>Düzenle</Button>
+              </>
+            ) : (
+              <p className="text-[13px] text-muted">Bir güne dokun, değerleri gör.</p>
+            )}
           </div>
-          <SeverityChart values={moodSeries} sel={sel} onSel={setSel} mood />
-          {axis}
+
+          <CombinedChart series={visible} n={days.length} sel={sel} onSel={setSel} />
+          <div className="flex justify-between pl-[14px] pr-[8px] text-[10px] text-faint">
+            <span>{fmtDate(days[0])}</span>
+            <span>{fmtDate(days[Math.floor(days.length / 2)])}</span>
+            <span>Bugün</span>
+          </div>
+
+          {/* Gösterge = aç/kapat düğmeleri; seçili gün varsa o günün değeri, yoksa kaç gün görüldüğü */}
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {all.map(s => {
+              const off = hidden.has(s.name)
+              const v = sel !== null ? s.values[sel] : null
+              const info = sel !== null
+                ? v === null ? '–' : s.name === 'Genel his' ? (v ? MOODS[v - 1] : '–') : v ? String(v) : '0'
+                : `${daysWith(s)}g`
+              return (
+                <button
+                  key={s.name}
+                  onClick={() => toggle(s.name)}
+                  aria-pressed={!off}
+                  className={`flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-medium transition active:scale-95 ${off ? 'border-line text-faint' : 'border-line bg-surface-2 text-ink'}`}
+                >
+                  <span
+                    className="h-0.5 w-3.5 rounded-full"
+                    style={{ background: off ? 'transparent' : s.color, border: off ? `1px solid ${s.color}` : undefined, borderStyle: s.dashed ? 'dashed' : undefined }}
+                  />
+                  <span className={off ? 'line-through' : ''}>{s.name}</span>
+                  {!off && <span className="text-muted tabular-nums">{info}</span>}
+                </button>
+              )
+            })}
+          </div>
         </Card>
       )}
-
-      {names.map(n => {
-        const vals = series(n)
-        const s = stats(vals)
-        return (
-          <Card key={n}>
-            <div className="mb-1 flex items-baseline justify-between gap-2">
-              <p className="truncate font-semibold">{n}</p>
-              <p className="shrink-0 text-[12px] text-muted">
-                {sel !== null
-                  ? vals[sel] === null ? 'kayıt yok' : vals[sel] ? `${vals[sel]} · ${SCORE_LABELS[vals[sel]!]}` : 'yok'
-                  : `${s.days} gün · ort. ${fmt(s.avg)} · en çok ${s.max}`}
-              </p>
-            </div>
-            <SeverityChart values={vals} sel={sel} onSel={setSel} />
-            {axis}
-          </Card>
-        )
-      })}
+      <p className="px-1 text-[12px] text-faint">Dokunarak semptomları grafikte aç/kapat. 1 = hafif, 5 = çok şiddetli. Genel his: 1 = çok kötü, 5 = çok iyi.</p>
     </div>
   )
 }

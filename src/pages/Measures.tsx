@@ -1,17 +1,19 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Droplet, HeartPulse, Scale, Trash2, TrendingDown, TrendingUp, type LucideIcon } from 'lucide-react'
+import { Droplet, FlaskConical, HeartPulse, Scale, Trash2, TrendingDown, TrendingUp, type LucideIcon } from 'lucide-react'
 import { db, type Measurement, type MeasureType } from '../db'
 import { fmtDate, ymd } from '../lib/dates'
-import { MEASURES, SUGAR_TAGS, byTime, formatValue, parseNum, validate } from '../lib/measures'
+import { ENTRY_TYPES, MEASURES, byTime, formatValue, parseNum, validate } from '../lib/measures'
 import { Button, Card, Chip, Empty, Fab, IconButton, Input, Label, PageHeader, SectionTitle, Sheet, Textarea, useOpenFromQuickAdd } from '../components/ui'
 
 const TYPES: { type: MeasureType; icon: LucideIcon; tone: string }[] = [
   { type: 'kilo', icon: Scale, tone: 'text-mint' },
   { type: 'tansiyon', icon: HeartPulse, tone: 'text-rose' },
+  { type: 'tsh', icon: FlaskConical, tone: 'text-violet' },
   { type: 'seker', icon: Droplet, tone: 'text-amber' },
 ]
+const ENTRY = TYPES.filter(t => ENTRY_TYPES.includes(t.type))
 
 const SERIES = ['url(#ml)', '#5eead4']
 
@@ -20,8 +22,9 @@ function Chart({ pts }: { pts: Measurement[] }) {
   const W = 340, H = 150, P = 8
   const series = pts[0].type === 'tansiyon' ? [pts.map(p => p.value), pts.map(p => p.value2 ?? p.value)] : [pts.map(p => p.value)]
   const all = series.flat()
-  const pad = pts[0].type === 'kilo' ? 0.5 : 5
-  const lo = Math.min(...all) - pad, hi = Math.max(...all) + pad
+  const min = Math.min(...all), max = Math.max(...all)
+  const pad = pts[0].type === 'kilo' ? 0.5 : pts[0].type === 'tansiyon' ? 5 : Math.max(0.1, (max - min) * 0.2)
+  const lo = min - pad, hi = max + pad
   const x = (i: number) => P + (i * (W - 2 * P)) / (pts.length - 1)
   const y = (v: number) => P + (1 - (v - lo) / (hi - lo)) * (H - 2 * P)
   const path = (vals: number[]) => vals.map((v, i) => `${i ? 'L' : 'M'}${x(i)},${y(v)}`).join(' ')
@@ -52,6 +55,9 @@ export default function Measures() {
   const setType = (t: MeasureType) => setParams(p => { p.set('tur', t); return p }, { replace: true })
 
   const loaded = useLiveQuery(() => db.measurements.where('type').equals(type).toArray(), [type])
+  // Şeker artık girilmiyor; eski kayıt varsa görüntülemek için seçenek kalır
+  const hasSugar = (useLiveQuery(() => db.measurements.where('type').equals('seker').count(), []) ?? 0) > 0
+  const visible = TYPES.filter(t => ENTRY_TYPES.includes(t.type) || (t.type === 'seker' && hasSugar))
   const rows = (loaded ?? []).sort(byTime)
 
   const [open, setOpen] = useState(false)
@@ -60,11 +66,10 @@ export default function Measures() {
   const [v2, setV2] = useState('')
   const [date, setDate] = useState(ymd())
   const [time, setTime] = useState(nowTime())
-  const [tag, setTag] = useState(SUGAR_TAGS[0])
   const [note, setNote] = useState('')
 
   function openNew(t: MeasureType = type) {
-    setFormType(t); setV1(''); setV2(''); setDate(ymd()); setTime(nowTime()); setTag(SUGAR_TAGS[0]); setNote(''); setOpen(true)
+    setFormType(ENTRY_TYPES.includes(t) ? t : 'kilo'); setV1(''); setV2(''); setDate(ymd()); setTime(nowTime()); setNote(''); setOpen(true)
   }
   useOpenFromQuickAdd(() => openNew())
 
@@ -74,9 +79,8 @@ export default function Measures() {
     if (err) return alert(err)
     await db.measurements.add({
       type: formType, date, value: a!,
-      ...(formType !== 'kilo' && { time }),
+      ...(MEASURES[formType].withTime && { time }),
       ...(formType === 'tansiyon' && { value2: b! }),
-      ...(formType === 'seker' && { tag }),
       ...(note.trim() && { note: note.trim() }),
     } as never)
     setOpen(false)
@@ -94,7 +98,7 @@ export default function Measures() {
       <PageHeader compact subtitle="Gebelik boyunca" title="Ölçümler" action={<Fab label="Ölçüm ekle" onClick={() => openNew()} />} />
 
       <div className="flex gap-2">
-        {TYPES.map(t => (
+        {visible.map(t => (
           <Chip key={t.type} active={t.type === type} onClick={() => setType(t.type)}>{MEASURES[t.type].label}</Chip>
         ))}
       </div>
@@ -144,7 +148,7 @@ export default function Measures() {
       <Sheet open={open} onClose={() => setOpen(false)} title="Yeni ölçüm">
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-1 rounded-2xl border border-line bg-surface-2 p-1">
-            {TYPES.map(t => (
+            {ENTRY.map(t => (
               <button
                 key={t.type}
                 onClick={() => setFormType(t.type)}
@@ -167,15 +171,9 @@ export default function Measures() {
             </div>
           )}
 
-          {formType === 'seker' && (
-            <div className="flex flex-wrap gap-2">
-              {SUGAR_TAGS.map(t => <Chip key={t} active={tag === t} onClick={() => setTag(t)}>{t}</Chip>)}
-            </div>
-          )}
-
-          <div className={`grid gap-2 ${formType === 'kilo' ? '' : 'grid-cols-2'}`}>
-            <div><Label>Tarih</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
-            {formType !== 'kilo' && <div><Label>Saat</Label><Input type="time" value={time} onChange={e => setTime(e.target.value)} /></div>}
+          <div className={`grid gap-2 ${MEASURES[formType].withTime ? 'grid-cols-2' : ''}`}>
+            <div><Label>{formType === 'tsh' ? 'Tahlil tarihi' : 'Tarih'}</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
+            {MEASURES[formType].withTime && <div><Label>Saat</Label><Input type="time" value={time} onChange={e => setTime(e.target.value)} /></div>}
           </div>
 
           <div><Label>Not (isteğe bağlı)</Label><Textarea rows={2} placeholder="Ör. sabah aç karnına" value={note} onChange={e => setNote(e.target.value)} /></div>

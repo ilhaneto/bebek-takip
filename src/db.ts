@@ -24,11 +24,12 @@ export interface Appointment {
 }
 /** Eski kilo tablosu; v3'te measurements'a kopyalandı, silinmedi. */
 export interface Weight { id: number; date: string; kg: number }
-export type MeasureType = 'kilo' | 'tansiyon' | 'seker'
+/** seker artık yeni kayıtta kullanılmıyor; eski şeker kayıtları saklanır ve görüntülenir. */
+export type MeasureType = 'kilo' | 'tansiyon' | 'tsh' | 'seker'
 export interface Measurement {
   id: number; type: MeasureType; date: string
   time?: string // "HH:mm"
-  value: number // kilo: kg, tansiyon: büyük, şeker: mg/dL
+  value: number // kilo: kg, tansiyon: büyük, tsh: mIU/L, şeker: mg/dL
   value2?: number // tansiyon: küçük
   tag?: string // şeker: Açlık / Tokluk…
   note?: string

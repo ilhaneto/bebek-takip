@@ -14,7 +14,13 @@ test('doğrulama', () => {
   expect(validate('tansiyon', 120, 80)).toBeNull()
   expect(validate('tansiyon', 80, 120)).not.toBeNull()
   expect(validate('tansiyon', 120, null)).not.toBeNull()
-  expect(validate('seker', 92, null)).toBeNull()
+  expect(validate('tsh', 2.15, null)).toBeNull()
+  expect(validate('tsh', 0, null)).not.toBeNull()
+})
+
+test('TSH ondalıkları korunur', () => {
+  expect(formatValue({ type: 'tsh', value: 0.045 })).toBe('0,045')
+  expect(formatValue({ type: 'tsh', value: 2.5 })).toBe('2,5')
 })
 
 test('biçimlendirme', () => {

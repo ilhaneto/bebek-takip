@@ -18,7 +18,7 @@ const tabs: { to: string; label: string; icon: LucideIcon }[] = [
 ]
 
 const quickAdd: { label: string; hint: string; icon: LucideIcon; tone: 'rose' | 'violet' | 'mint' | 'amber'; to: string }[] = [
-  { label: 'Ölçüm', hint: 'Kilo, tansiyon, şeker', icon: Scale, tone: 'mint', to: '/saglik/olcumler?yeni=1' },
+  { label: 'Ölçüm', hint: 'Kilo, tansiyon, TSH', icon: Scale, tone: 'mint', to: '/saglik/olcumler?yeni=1' },
   { label: 'Not', hint: 'Soru, his, hatırlatma', icon: NotebookPen, tone: 'amber', to: '/defter/notlar?yeni=1' },
   { label: 'Randevu', hint: 'Kontrol, test, ultrason', icon: CalendarHeart, tone: 'violet', to: '/takvim/randevular?yeni=1' },
   { label: 'İlaç', hint: 'Yeni ilaç veya vitamin', icon: Pill, tone: 'rose', to: '/saglik/ilaclar?yeni=1' },

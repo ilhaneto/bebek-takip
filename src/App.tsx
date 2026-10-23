@@ -9,6 +9,8 @@ import Measures from './pages/Measures'
 import Symptoms from './pages/Symptoms'
 import Settings from './pages/Settings'
 import Section from './pages/Section'
+import Onboarding from './pages/Onboarding'
+import { usePregnancyDates } from './lib/baby'
 import { IconBadge, Sheet } from './components/ui'
 
 const tabs: { to: string; label: string; icon: LucideIcon }[] = [
@@ -48,6 +50,11 @@ function TabLink({ to, label, icon: Icon }: { to: string; label: string; icon: L
 function Shell() {
   const nav = useNavigate()
   const [adding, setAdding] = useState(false)
+  const dates = usePregnancyDates()
+
+  // İlk açılışta (tarih girilmemişse) önce son adet tarihi istenir
+  if (dates === undefined) return null
+  if (dates === null) return <Onboarding />
 
   return (
     <>

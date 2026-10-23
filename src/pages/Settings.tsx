@@ -1,14 +1,13 @@
 import { useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
 import { ChevronLeft, ChevronRight, Download, Upload } from 'lucide-react'
-import { db } from '../db'
+import { savePregnancyDates, usePregnancyDates } from '../lib/baby'
 import { exportBackup, importBackup } from '../lib/backup'
 import { Card, IconBadge, Input, Label, SectionTitle } from '../components/ui'
 
 export default function Settings() {
   const nav = useNavigate()
-  const due = useLiveQuery(() => db.settings.get('dueDate'), [])?.value
+  const dates = usePregnancyDates()
   const fileRef = useRef<HTMLInputElement>(null)
 
   return (
@@ -21,10 +20,18 @@ export default function Settings() {
       </header>
 
       <SectionTitle>Gebelik</SectionTitle>
-      <Card>
-        <Label>Tahmini doğum tarihi</Label>
-        <Input type="date" value={due ?? ''} onChange={e => db.settings.put({ key: 'dueDate', value: e.target.value })} />
-        <p className="px-1 pt-2 text-[12px] text-faint">Hafta ve kalan gün bu tarihten hesaplanır.</p>
+      <Card className="space-y-3">
+        <div>
+          <Label>Son adet tarihi</Label>
+          <Input type="date" value={dates?.lmp ?? ''} onChange={e => e.target.value && savePregnancyDates({ lmp: e.target.value })} />
+        </div>
+        <div>
+          <Label>Tahmini doğum tarihi</Label>
+          <Input type="date" value={dates?.due ?? ''} onChange={e => e.target.value && savePregnancyDates({ due: e.target.value })} />
+        </div>
+        <p className="px-1 text-[12px] text-faint">
+          Biri değişince diğeri 280 gün farkla güncellenir. Doktor ultrasona göre farklı bir doğum tarihi verdiyse doğum tarihini değiştirmen yeterli.
+        </p>
       </Card>
 
       <SectionTitle>Veriler</SectionTitle>

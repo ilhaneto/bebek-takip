@@ -163,6 +163,7 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
     <div className={cx('fixed inset-0 z-50 transition', open ? 'visible' : 'invisible')}>
       <div onClick={onClose} className={cx('absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity', open ? 'opacity-100' : 'opacity-0')} />
       <div
+        data-sheet-scroll
         className={cx(
           'absolute inset-x-0 bottom-0 mx-auto max-w-md rounded-t-[28px] bg-surface border-t border-line p-5 transition-transform duration-300 max-h-[90vh] overflow-y-auto',
           open ? 'translate-y-0' : 'translate-y-full',

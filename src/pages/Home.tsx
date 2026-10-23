@@ -1,35 +1,13 @@
-import type { ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Activity, CalendarHeart, Check, ChevronRight, MapPin, Pill, Settings } from 'lucide-react'
 import { MOODS } from '../lib/symptoms'
+import { usePregnancyDates } from '../lib/baby'
+import WeekCard from '../components/WeekCard'
 import { db } from '../db'
 import { fmtDateTime, pregnancyWeek } from '../lib/dates'
 import { useTodayMeds } from '../lib/useTodayMeds'
 import { Card, Empty, IconBadge, SectionTitle } from '../components/ui'
-
-function Ring({ value, children }: { value: number; children: ReactNode }) {
-  const r = 52, c = 2 * Math.PI * r
-  return (
-    <div className="relative size-[132px] shrink-0">
-      <svg viewBox="0 0 120 120" className="size-full -rotate-90">
-        <defs>
-          <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#ff7a9c" />
-            <stop offset="1" stopColor="#a78bfa" />
-          </linearGradient>
-        </defs>
-        <circle cx="60" cy="60" r={r} fill="none" stroke="#2a2635" strokeWidth="10" />
-        <circle
-          cx="60" cy="60" r={r} fill="none" stroke="url(#ring)" strokeWidth="10" strokeLinecap="round"
-          strokeDasharray={c} strokeDashoffset={c * (1 - Math.min(1, Math.max(0, value)))}
-          className="transition-[stroke-dashoffset] duration-700"
-        />
-      </svg>
-      <div className="absolute inset-0 grid place-items-center text-center">{children}</div>
-    </div>
-  )
-}
 
 const greeting = () => {
   const h = new Date().getHours()
@@ -38,9 +16,7 @@ const greeting = () => {
 
 export default function Home() {
   const nav = useNavigate()
-  // undefined = yükleniyor, null = girilmemiş (yüklenirken "Hoş geldin" kartı yanıp sönmesin)
-  const dueRow = useLiveQuery(() => db.settings.get('dueDate').then(r => r ?? null), [])
-  const due = dueRow?.value
+  const dates = usePregnancyDates()
   const next = useLiveQuery(
     () => db.appointments.where('at').above(new Date().toISOString().slice(0, 16)).first(),
     [],
@@ -49,7 +25,7 @@ export default function Home() {
   const todaySym = useLiveQuery(() => db.symptoms.where('date').equals(today).first(), [today])
   const topSym = Object.entries(todaySym?.scores ?? {}).sort((a, b) => b[1] - a[1]).slice(0, 3)
 
-  const preg = due ? pregnancyWeek(due) : null
+  const preg = dates ? pregnancyWeek(dates.due) : null
   const dateLabel = new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })
   const doses = dueToday
     .flatMap(m => m.times.map(t => ({ m, t })))
@@ -67,39 +43,7 @@ export default function Home() {
         </Link>
       </header>
 
-      {preg ? (
-        <Card className="relative overflow-hidden p-5">
-          <div className="absolute -right-16 -top-16 size-48 rounded-full bg-violet/20 blur-3xl" />
-          <div className="relative flex items-center gap-5">
-            <Ring value={(280 - preg.daysLeft) / 280}>
-              <div>
-                <div className="text-[34px] font-bold leading-none">{preg.week}</div>
-                <div className="text-[12px] text-muted mt-1">hafta {preg.day > 0 && `+${preg.day}g`}</div>
-              </div>
-            </Ring>
-            <div className="min-w-0">
-              <p className="text-[13px] text-muted">Doğuma</p>
-              <p className="text-[28px] font-bold leading-tight">
-                {preg.daysLeft > 0 ? `${preg.daysLeft} gün` : 'Zamanı geldi 💕'}
-              </p>
-              <p className="text-[13px] text-muted mt-1">{Math.min(3, Math.floor(preg.week / 13) + 1)}. trimester</p>
-            </div>
-          </div>
-        </Card>
-      ) : dueRow === undefined ? (
-        <div className="h-[174px]" />
-      ) : (
-        <Card onClick={() => nav('/ayarlar')} className="relative overflow-hidden p-5">
-          <div className="absolute -right-16 -top-16 size-48 rounded-full bg-violet/20 blur-3xl" />
-          <div className="relative flex items-center gap-3">
-            <div className="flex-1">
-              <p className="font-semibold text-lg">Hoş geldin 💕</p>
-              <p className="text-sm text-muted">Haftayı takip etmek için tahmini doğum tarihini gir.</p>
-            </div>
-            <ChevronRight size={20} className="text-faint" />
-          </div>
-        </Card>
-      )}
+      {preg && <WeekCard preg={preg} due={dates!.due} />}
 
       <Card onClick={() => nav('/saglik/semptomlar?gorunum=gunluk')}>
         <div className="flex items-center gap-3">

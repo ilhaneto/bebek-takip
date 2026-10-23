@@ -16,7 +16,14 @@ export interface Med {
 }
 /** name alındığı andaki ilaç adıdır; ilaç sonradan düzenlense de geçmiş değişmez. dose yalnızca eski kayıtlarda var. */
 export interface MedLog { id: number; medId: number; date: string; time: string; takenAt: number; name?: string; dose?: string }
-export interface Note { id: number; text: string; tag: string; createdAt: number }
+export interface ListItem { id: string; text: string; done: boolean }
+/** kind 'list' ise text başlıktır ve maddeler items'tadır; eski notlarda kind yok = düz not. */
+export interface Note {
+  id: number; text: string; tag: string; createdAt: number
+  kind?: 'text' | 'list'
+  items?: ListItem[]
+  updatedAt?: number
+}
 export interface Appointment {
   id: number; title: string; doctor: string; place: string
   at: string // yerel "YYYY-MM-DDTHH:mm"

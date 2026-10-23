@@ -1,10 +1,25 @@
 import { db, mergeDose, TABLES, weightToMeasurement, type Med, type Weight } from '../db'
 import { downloadFile } from './ics'
 
+/**
+ * Yedeği önce paylaş menüsüyle verir (iPhone: AirDrop, Dosyalar'a kaydet, WhatsApp…);
+ * paylaşım desteklenmez ya da başarısız olursa dosya olarak indirir.
+ */
 export async function exportBackup() {
   const data: Record<string, unknown[]> = {}
   for (const t of TABLES) data[t] = await db.table(t).toArray()
-  downloadFile(`ilhanbaby-yedek-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(data), 'application/json')
+  const name = `ilhanbaby-yedek-${new Date().toISOString().slice(0, 10)}.json`
+  const json = JSON.stringify(data)
+  const file = new File([json], name, { type: 'application/json' })
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: 'ilhanbaby yedeği' })
+      return
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') return // kullanıcı paylaşımı kapattı
+    }
+  }
+  downloadFile(name, json, 'application/json')
 }
 
 /** Eski sürüm yedeklerini güncel yapıya çevirir. */

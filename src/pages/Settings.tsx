@@ -67,7 +67,7 @@ export default function Settings() {
           <IconBadge icon={Download} tone="mint" />
           <div className="flex-1 text-left">
             <p className="font-semibold">Yedek al</p>
-            <p className="text-[13px] text-muted">Veriler yalnızca bu telefonda durur</p>
+            <p className="text-[13px] text-muted">Başka telefona taşımak için AirDrop, Dosyalar ya da WhatsApp ile gönder</p>
           </div>
           <ChevronRight size={18} className="text-faint" />
         </button>
@@ -76,7 +76,7 @@ export default function Settings() {
           <IconBadge icon={Upload} tone="amber" />
           <div className="flex-1 text-left">
             <p className="font-semibold">Yedekten geri yükle</p>
-            <p className="text-[13px] text-muted">Mevcut verilerin yerine geçer</p>
+            <p className="text-[13px] text-muted">Dosyalar'dan yedek dosyasını seç; mevcut verilerin yerine geçer</p>
           </div>
           <ChevronRight size={18} className="text-faint" />
         </button>

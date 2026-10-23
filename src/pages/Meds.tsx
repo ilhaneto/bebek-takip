@@ -1,31 +1,31 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Bell, CalendarPlus, Check, Pill, Repeat, Trash2 } from 'lucide-react'
+import { Bell, CalendarPlus, Check, Pencil, Pill, Repeat, Trash2 } from 'lucide-react'
 import { db, type Med, type Schedule } from '../db'
 import { fmtDate, ymd } from '../lib/dates'
 import { downloadFile, medsToIcs } from '../lib/ics'
-import { DEFAULT_REMIND, WEEK, firstDueFrom, isDueOn, remindLabel, scheduleLabel } from '../lib/schedule'
+import { DEFAULT_REMIND, WEEK, firstDueFrom, isDueOn, remindLabel, scheduleLabel, scheduleOf } from '../lib/schedule'
 import { Button, Card, Chip, Empty, Fab, IconBadge, IconButton, Input, Label, PageHeader, SectionTitle, Sheet } from '../components/ui'
 
 type RepeatType = Schedule['type']
 const REMIND_OPTIONS = [0, 15, 30, 60]
 
-function MedCard({ m, today, taken, onToggle }: { m: Med; today: string; taken: (t: string) => boolean; onToggle: (t: string) => void }) {
+function MedCard({ m, today, taken, onToggle, onEdit }: { m: Med; today: string; taken: (t: string) => boolean; onToggle: (t: string) => void; onEdit: () => void }) {
   const due = isDueOn(m, today)
   return (
     <Card className={due ? '' : 'opacity-70'}>
       <div className="flex items-center gap-3">
         <IconBadge icon={Pill} tone={due ? 'rose' : 'violet'} />
-        <div className="flex-1 min-w-0">
+        <button className="flex-1 min-w-0 text-left" onClick={onEdit}>
           <p className="font-semibold text-[16px] truncate">{m.name}</p>
           {m.dose && <p className="text-[13px] text-muted truncate">{m.dose}</p>}
-        </div>
+        </button>
         <IconButton
           icon={CalendarPlus}
           label="Takvime ekle"
           onClick={() => downloadFile(`${m.name}.ics`, medsToIcs([m], today), 'text/calendar')}
         />
-        <IconButton icon={Trash2} label="Sil" onClick={() => confirm(`${m.name} silinsin mi?`) && db.meds.delete(m.id)} />
+        <IconButton icon={Pencil} label="Düzenle" onClick={onEdit} />
       </div>
       <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-muted">
         <span className="flex items-center gap-1"><Repeat size={13} /> {scheduleLabel(m)}</span>
@@ -60,6 +60,7 @@ export default function Meds() {
   const today = ymd()
   const logs = useLiveQuery(() => db.medLogs.where('date').equals(today).toArray(), [today]) ?? []
   const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<Med | null>(null)
   const [name, setName] = useState('')
   const [dose, setDose] = useState('')
   const [times, setTimes] = useState('09:00')
@@ -78,7 +79,28 @@ export default function Meds() {
     setName(''); setDose(''); setTimes('09:00'); setRepeat('daily'); setDays([]); setEvery('2'); setStart(today); setRemind(DEFAULT_REMIND)
   }
 
-  async function add() {
+  function openNew() {
+    reset(); setEditing(null); setOpen(true)
+  }
+
+  function openEdit(m: Med) {
+    const s = scheduleOf(m)
+    setName(m.name); setDose(m.dose); setTimes(m.times.join(' ')); setRepeat(s.type)
+    setDays(s.type === 'weekly' ? s.days : [])
+    setEvery(s.type === 'interval' ? String(s.every) : '2')
+    setStart(s.type === 'interval' ? s.start : today)
+    setRemind(m.remindBefore ?? DEFAULT_REMIND)
+    setEditing(m); setOpen(true)
+  }
+
+  async function remove() {
+    if (!editing || !confirm(`${editing.name} silinsin mi?`)) return
+    await db.medLogs.where('medId').equals(editing.id).delete()
+    await db.meds.delete(editing.id)
+    setOpen(false)
+  }
+
+  async function save() {
     const list = times.split(/[ ,]+/).filter(t => /^\d{1,2}[:.]\d{2}$/.test(t)).map(t => t.replace('.', ':').padStart(5, '0'))
     if (!name.trim() || !list.length) return
     let schedule: Schedule = { type: 'daily' }
@@ -90,8 +112,16 @@ export default function Meds() {
       if (!(n >= 1 && n <= 60)) return alert('1 ile 60 arasında bir gün sayısı gir.')
       schedule = { type: 'interval', every: n, start }
     }
-    await db.meds.add({ name: name.trim(), dose: dose.trim(), times: list.sort(), active: true, schedule, remindBefore: remind } as never)
-    reset(); setOpen(false)
+    const data = { name: name.trim(), dose: dose.trim(), times: list.sort(), schedule, remindBefore: remind }
+    if (editing) {
+      await db.meds.update(editing.id, data)
+      const changed = editing.times.join() !== data.times.join() || JSON.stringify(scheduleOf(editing)) !== JSON.stringify(schedule)
+        || (editing.remindBefore ?? DEFAULT_REMIND) !== remind
+      if (changed) alert('Kaydedildi. Bu ilacı daha önce Takvim\'e eklediysen eski etkinliği Takvim\'den sil ve karttaki takvim simgesiyle yeniden ekle.')
+    } else {
+      await db.meds.add({ ...data, active: true } as never)
+    }
+    reset(); setEditing(null); setOpen(false)
   }
 
   async function toggle(medId: number, time: string) {
@@ -107,6 +137,7 @@ export default function Meds() {
       today={today}
       taken={t => logs.some(l => l.medId === m.id && l.time === t)}
       onToggle={t => toggle(m.id, t)}
+      onEdit={() => openEdit(m)}
     />
   )
 
@@ -115,7 +146,7 @@ export default function Meds() {
       <PageHeader
         subtitle={total ? `Bugün ${takenCount} / ${total} alındı` : 'Günlük takip'}
         title="İlaç & Vitamin"
-        action={<Fab label="İlaç ekle" onClick={() => setOpen(true)} />}
+        action={<Fab label="İlaç ekle" onClick={openNew} />}
       />
 
       {meds.length === 0 && (
@@ -141,7 +172,7 @@ export default function Meds() {
         </>
       )}
 
-      <Sheet open={open} onClose={() => setOpen(false)} title="Yeni ilaç">
+      <Sheet open={open} onClose={() => setOpen(false)} title={editing ? 'İlacı düzenle' : 'Yeni ilaç'}>
         <div className="space-y-4">
           <div><Label>Ad</Label><Input placeholder="Levotiron" value={name} onChange={e => setName(e.target.value)} /></div>
           <div className="grid grid-cols-2 gap-2">
@@ -202,7 +233,12 @@ export default function Meds() {
             </div>
           </div>
 
-          <Button className="w-full" onClick={add}>Kaydet</Button>
+          <Button className="w-full" onClick={save}>{editing ? 'Değişiklikleri kaydet' : 'Kaydet'}</Button>
+          {editing && (
+            <Button variant="ghost" className="w-full text-rose" onClick={remove}>
+              <Trash2 size={18} /> İlacı sil
+            </Button>
+          )}
         </div>
       </Sheet>
     </div>

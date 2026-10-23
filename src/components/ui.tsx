@@ -103,7 +103,7 @@ export function IconButton({ icon: Icon, label, className, ...p }: ButtonHTMLAtt
   )
 }
 
-const field = 'w-full rounded-2xl bg-surface-2 border border-line px-4 py-3 text-[16px] text-ink placeholder:text-faint outline-none focus:border-rose/60 focus:ring-4 focus:ring-rose/10 transition'
+const field = 'block w-full min-w-0 rounded-2xl bg-surface-2 border border-line px-4 py-3 text-[16px] text-ink placeholder:text-faint outline-none focus:border-rose/60 focus:ring-4 focus:ring-rose/10 transition'
 
 export function Input({ className, ...p }: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...p} className={cx(field, className)} />

@@ -43,6 +43,14 @@ body::before {
   z-index: -1;
 }
 
-input[type="date"], input[type="datetime-local"] { min-height: 48px; }
-input::-webkit-date-and-time-value { text-align: left; }
+/* iOS Safari tarih/saat alanlarına kendi en küçük genişliğini verir ve width:100%'ü yok sayar; kutudan taşmasın */
+input[type="date"], input[type="time"], input[type="datetime-local"] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 48px;
+}
+input::-webkit-date-and-time-value { text-align: left; min-height: 1.5em; }
 ::-webkit-calendar-picker-indicator { filter: invert(0.8); }

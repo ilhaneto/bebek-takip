@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { NotebookPen, Search, Trash2 } from 'lucide-react'
 import { db } from '../db'
-import { Button, Card, Chip, Empty, Fab, IconButton, Input, PageHeader, Sheet, Textarea } from '../components/ui'
+import { Button, Card, Chip, Empty, Fab, IconButton, Input, PageHeader, Sheet, Textarea, useOpenFromQuickAdd } from '../components/ui'
 
 const TAGS = ['Genel', 'Soru', 'Semptom', 'Hatırlatma']
 const tagTone: Record<string, string> = {
@@ -15,6 +15,7 @@ const tagTone: Record<string, string> = {
 export default function Notes() {
   const notes = useLiveQuery(() => db.notes.orderBy('createdAt').reverse().toArray(), []) ?? []
   const [open, setOpen] = useState(false)
+  useOpenFromQuickAdd(() => setOpen(true))
   const [text, setText] = useState('')
   const [tag, setTag] = useState(TAGS[0])
   const [q, setQ] = useState('')
@@ -32,7 +33,7 @@ export default function Notes() {
 
   return (
     <div className="space-y-3">
-      <PageHeader subtitle={`${notes.length} not`} title="Notlar" action={<Fab label="Not ekle" onClick={() => setOpen(true)} />} />
+      <PageHeader compact subtitle={`${notes.length} not`} title="Notlar" action={<Fab label="Not ekle" onClick={() => setOpen(true)} />} />
 
       <div className="relative">
         <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-faint" />

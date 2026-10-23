@@ -1,14 +1,13 @@
-import { useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import type { ReactNode } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { CalendarHeart, ChevronRight, Download, Pill, Upload } from 'lucide-react'
+import { CalendarHeart, Check, ChevronRight, MapPin, Pill, Settings } from 'lucide-react'
 import { db } from '../db'
-import { fmtDateTime, pregnancyWeek, ymd } from '../lib/dates'
-import { exportBackup, importBackup } from '../lib/backup'
-import { isDueOn } from '../lib/schedule'
-import { Card, IconBadge, Input, Label, SectionTitle } from '../components/ui'
+import { fmtDateTime, pregnancyWeek } from '../lib/dates'
+import { useTodayMeds } from '../lib/useTodayMeds'
+import { Card, Empty, IconBadge, SectionTitle } from '../components/ui'
 
-function Ring({ value, children }: { value: number; children: React.ReactNode }) {
+function Ring({ value, children }: { value: number; children: ReactNode }) {
   const r = 52, c = 2 * Math.PI * r
   return (
     <div className="relative size-[132px] shrink-0">
@@ -38,32 +37,36 @@ const greeting = () => {
 
 export default function Home() {
   const nav = useNavigate()
-  const due = useLiveQuery(() => db.settings.get('dueDate'), [])?.value
-  const meds = useLiveQuery(() => db.meds.toArray(), []) ?? []
-  const today = ymd()
-  const logs = useLiveQuery(() => db.medLogs.where('date').equals(today).toArray(), [today]) ?? []
+  // undefined = yükleniyor, null = girilmemiş (yüklenirken "Hoş geldin" kartı yanıp sönmesin)
+  const dueRow = useLiveQuery(() => db.settings.get('dueDate').then(r => r ?? null), [])
+  const due = dueRow?.value
   const next = useLiveQuery(
     () => db.appointments.where('at').above(new Date().toISOString().slice(0, 16)).first(),
     [],
   )
-  const fileRef = useRef<HTMLInputElement>(null)
+  const { loaded, dueToday, total, takenCount, isTaken, toggle } = useTodayMeds()
 
-  const dueToday = meds.filter(m => m.active && isDueOn(m, today))
-  const total = dueToday.reduce((n, m) => n + m.times.length, 0)
-  const takenCount = logs.filter(l => dueToday.some(m => m.id === l.medId)).length
   const preg = due ? pregnancyWeek(due) : null
   const dateLabel = new Date().toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' })
+  const doses = dueToday
+    .flatMap(m => m.times.map(t => ({ m, t })))
+    .sort((a, b) => a.t.localeCompare(b.t))
 
   return (
     <div className="space-y-3">
-      <header className="pt-2 pb-3">
-        <p className="text-[13px] font-medium text-muted capitalize">{dateLabel}</p>
-        <h1 className="text-[30px] font-bold tracking-tight">{greeting()} ✨</h1>
+      <header className="flex items-start justify-between pt-2 pb-3">
+        <div>
+          <p className="text-[13px] font-medium text-muted capitalize">{dateLabel}</p>
+          <h1 className="text-[30px] font-bold tracking-tight">{greeting()} ✨</h1>
+        </div>
+        <Link to="/ayarlar" aria-label="Ayarlar" className="grid size-11 place-items-center rounded-full border border-line bg-surface/80 text-muted active:bg-surface-2">
+          <Settings size={20} />
+        </Link>
       </header>
 
-      <Card className="relative overflow-hidden p-5">
-        <div className="absolute -right-16 -top-16 size-48 rounded-full bg-violet/20 blur-3xl" />
-        {preg ? (
+      {preg ? (
+        <Card className="relative overflow-hidden p-5">
+          <div className="absolute -right-16 -top-16 size-48 rounded-full bg-violet/20 blur-3xl" />
           <div className="relative flex items-center gap-5">
             <Ring value={(280 - preg.daysLeft) / 280}>
               <div>
@@ -79,74 +82,70 @@ export default function Home() {
               <p className="text-[13px] text-muted mt-1">{Math.min(3, Math.floor(preg.week / 13) + 1)}. trimester</p>
             </div>
           </div>
+        </Card>
+      ) : dueRow === undefined ? (
+        <div className="h-[174px]" />
+      ) : (
+        <Card onClick={() => nav('/ayarlar')} className="relative overflow-hidden p-5">
+          <div className="absolute -right-16 -top-16 size-48 rounded-full bg-violet/20 blur-3xl" />
+          <div className="relative flex items-center gap-3">
+            <div className="flex-1">
+              <p className="font-semibold text-lg">Hoş geldin 💕</p>
+              <p className="text-sm text-muted">Haftayı takip etmek için tahmini doğum tarihini gir.</p>
+            </div>
+            <ChevronRight size={20} className="text-faint" />
+          </div>
+        </Card>
+      )}
+
+      <SectionTitle right={total > 0 && <span className="text-[13px] font-semibold text-muted">{takenCount}/{total}</span>}>
+        Bugünün ilaçları
+      </SectionTitle>
+      {!loaded ? null : doses.length === 0 ? (
+        <Card onClick={() => nav('/saglik/ilaclar')}>
+          <Empty icon={Pill} title="Bugün ilaç yok" text="İlaç eklemek için dokun." />
+        </Card>
+      ) : (
+        <Card className="p-1.5">
+          {doses.map(({ m, t }, i) => {
+            const on = isTaken(m, t)
+            return (
+              <button
+                key={`${m.id}-${t}`}
+                onClick={() => toggle(m, t)}
+                className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left active:bg-surface-2 ${i ? 'border-t border-line/70' : ''}`}
+              >
+                <span className={`w-12 text-[15px] font-semibold tabular-nums ${on ? 'text-faint' : 'text-ink'}`}>{t}</span>
+                <span className={`flex-1 truncate text-[15px] ${on ? 'text-faint line-through' : ''}`}>{m.name}</span>
+                <span className={`grid size-7 place-items-center rounded-full border-2 transition ${on ? 'border-mint bg-mint text-bg' : 'border-line'}`}>
+                  {on && <Check size={16} strokeWidth={3.5} />}
+                </span>
+              </button>
+            )
+          })}
+        </Card>
+      )}
+
+      <SectionTitle>Sıradaki randevu</SectionTitle>
+      <Card onClick={() => nav('/takvim/randevular')}>
+        {next ? (
+          <div className="flex items-center gap-3">
+            <IconBadge icon={CalendarHeart} tone="violet" />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold truncate">{next.title}</p>
+              <p className="text-[13px] text-muted">{fmtDateTime(next.at)}</p>
+              {next.place && <p className="flex items-center gap-1 text-[12px] text-faint truncate"><MapPin size={12} /> {next.place}</p>}
+            </div>
+            <ChevronRight size={18} className="text-faint" />
+          </div>
         ) : (
-          <div className="relative">
-            <p className="font-semibold text-lg">Hoş geldin 💕</p>
-            <p className="text-sm text-muted mb-4">Haftayı takip etmek için tahmini doğum tarihini gir.</p>
+          <div className="flex items-center gap-3">
+            <IconBadge icon={CalendarHeart} tone="violet" />
+            <p className="flex-1 text-muted">Yaklaşan randevu yok</p>
+            <ChevronRight size={18} className="text-faint" />
           </div>
         )}
-        <div className="relative mt-4">
-          <Label>Tahmini doğum tarihi</Label>
-          <Input type="date" value={due ?? ''} onChange={e => db.settings.put({ key: 'dueDate', value: e.target.value })} />
-        </div>
       </Card>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Card onClick={() => nav('/ilac')}>
-          <IconBadge icon={Pill} tone="rose" />
-          <p className="text-[13px] text-muted mt-3">Bugünün ilaçları</p>
-          <p className="text-[22px] font-bold">{total === 0 ? '—' : `${takenCount}/${total}`}</p>
-          {total > 0 && (
-            <div className="mt-2 h-1.5 rounded-full bg-line overflow-hidden">
-              <div className="h-full rounded-full bg-gradient-to-r from-rose to-violet transition-all" style={{ width: `${(takenCount / total) * 100}%` }} />
-            </div>
-          )}
-        </Card>
-        <Card onClick={() => nav('/randevu')}>
-          <IconBadge icon={CalendarHeart} tone="violet" />
-          <p className="text-[13px] text-muted mt-3">Sıradaki randevu</p>
-          {next ? (
-            <>
-              <p className="text-[15px] font-bold leading-snug line-clamp-2">{next.title}</p>
-              <p className="text-[12px] text-muted mt-0.5">{fmtDateTime(next.at)}</p>
-            </>
-          ) : (
-            <p className="text-[22px] font-bold">—</p>
-          )}
-        </Card>
-      </div>
-
-      <SectionTitle>Veriler</SectionTitle>
-      <Card className="p-2">
-        <button onClick={exportBackup} className="flex w-full items-center gap-3 rounded-2xl p-2.5 active:bg-surface-2">
-          <IconBadge icon={Download} tone="mint" />
-          <div className="flex-1 text-left">
-            <p className="font-semibold">Yedek al</p>
-            <p className="text-[13px] text-muted">Veriler yalnızca bu telefonda durur</p>
-          </div>
-          <ChevronRight size={18} className="text-faint" />
-        </button>
-        <div className="mx-3 h-px bg-line" />
-        <button onClick={() => fileRef.current?.click()} className="flex w-full items-center gap-3 rounded-2xl p-2.5 active:bg-surface-2">
-          <IconBadge icon={Upload} tone="amber" />
-          <div className="flex-1 text-left">
-            <p className="font-semibold">Yedekten geri yükle</p>
-            <p className="text-[13px] text-muted">Mevcut verilerin yerine geçer</p>
-          </div>
-          <ChevronRight size={18} className="text-faint" />
-        </button>
-      </Card>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="application/json"
-        hidden
-        onChange={async e => {
-          const f = e.target.files?.[0]
-          if (f && confirm('Mevcut veriler silinip yedek yüklenecek. Emin misin?')) await importBackup(f)
-          e.target.value = ''
-        }}
-      />
     </div>
   )
 }

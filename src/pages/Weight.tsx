@@ -47,7 +47,7 @@ export default function Weight() {
 
   return (
     <div className="space-y-3">
-      <PageHeader subtitle="Gebelik boyunca" title="Kilo Takibi" />
+      <PageHeader compact subtitle="Gebelik boyunca" title="Kilo" />
 
       <Card className="p-5">
         <div className="flex items-end justify-between mb-4">

@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
 import { Archive, Bell, CalendarPlus, Check, Pencil, Pill, Repeat } from 'lucide-react'
 import { db, type Med, type Schedule } from '../db'
-import { fmtDate, ymd } from '../lib/dates'
+import { fmtDate } from '../lib/dates'
+import { useTodayMeds } from '../lib/useTodayMeds'
 import { downloadFile, medsToIcs } from '../lib/ics'
 import { DEFAULT_REMIND, WEEK, firstDueFrom, isDueOn, remindLabel, scheduleLabel, scheduleOf } from '../lib/schedule'
-import { Button, Card, Chip, Empty, Fab, IconBadge, IconButton, Input, Label, PageHeader, SectionTitle, Sheet } from '../components/ui'
+import { Button, Card, Chip, Empty, Fab, IconBadge, IconButton, Input, Label, PageHeader, SectionTitle, Sheet, useOpenFromQuickAdd } from '../components/ui'
 
 type RepeatType = Schedule['type']
 const REMIND_OPTIONS = [0, 15, 30, 60]
@@ -55,11 +55,8 @@ function MedCard({ m, today, taken, onToggle, onEdit }: { m: Med; today: string;
 }
 
 export default function Meds() {
-  const allMeds = useLiveQuery(() => db.meds.toArray(), []) ?? []
-  const meds = allMeds.filter(m => m.active)
+  const { loaded, today, allMeds, meds, dueToday, total, takenCount, isTaken, toggle } = useTodayMeds()
   const ended = allMeds.filter(m => !m.active)
-  const today = ymd()
-  const logs = useLiveQuery(() => db.medLogs.where('date').equals(today).toArray(), [today]) ?? []
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Med | null>(null)
   const [name, setName] = useState('')
@@ -70,10 +67,7 @@ export default function Meds() {
   const [start, setStart] = useState(today)
   const [remind, setRemind] = useState(DEFAULT_REMIND)
 
-  const dueToday = meds.filter(m => isDueOn(m, today))
   const others = meds.filter(m => !isDueOn(m, today))
-  const total = dueToday.reduce((n, m) => n + m.times.length, 0)
-  const takenCount = logs.filter(l => dueToday.some(m => m.id === l.medId)).length
 
   function reset() {
     setName(''); setTimes('09:00'); setRepeat('daily'); setDays([]); setEvery('2'); setStart(today); setRemind(DEFAULT_REMIND)
@@ -82,6 +76,7 @@ export default function Meds() {
   function openNew() {
     reset(); setEditing(null); setOpen(true)
   }
+  useOpenFromQuickAdd(openNew)
 
   function openEdit(m: Med) {
     const s = scheduleOf(m)
@@ -123,12 +118,6 @@ export default function Meds() {
     reset(); setEditing(null); setOpen(false)
   }
 
-  async function toggle(m: Med, time: string) {
-    const existing = logs.find(l => l.medId === m.id && l.time === time)
-    if (existing) await db.medLogs.delete(existing.id)
-    else await db.medLogs.add({ medId: m.id, date: today, time, takenAt: Date.now(), name: m.name } as never)
-  }
-
   async function resume(m: Med) {
     await db.meds.update(m.id, { active: true, endedAt: undefined, rev: (m.rev ?? 0) + 1 })
   }
@@ -138,7 +127,7 @@ export default function Meds() {
       key={m.id}
       m={m}
       today={today}
-      taken={t => logs.some(l => l.medId === m.id && l.time === t)}
+      taken={t => isTaken(m, t)}
       onToggle={t => toggle(m, t)}
       onEdit={() => openEdit(m)}
     />
@@ -147,12 +136,13 @@ export default function Meds() {
   return (
     <div className="space-y-3">
       <PageHeader
+        compact
         subtitle={total ? `Bugün ${takenCount} / ${total} alındı` : 'Günlük takip'}
         title="İlaç & Vitamin"
         action={<Fab label="İlaç ekle" onClick={openNew} />}
       />
 
-      {meds.length === 0 && (
+      {loaded && meds.length === 0 && (
         <Card><Empty icon={Pill} title="Henüz ilaç yok" text="Sağ üstteki + ile ilaçları ve tekrar günlerini ekle." /></Card>
       )}
 

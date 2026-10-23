@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { CalendarHeart, CalendarPlus, ChevronDown, MapPin, Stethoscope, Trash2 } from 'lucide-react'
 import { db, type Appointment } from '../db'
 import { appointmentToIcs, downloadFile } from '../lib/ics'
-import { Button, Card, Empty, Fab, Input, Label, PageHeader, SectionTitle, Sheet, Textarea } from '../components/ui'
+import { Button, Card, Empty, Fab, Input, Label, PageHeader, SectionTitle, Sheet, Textarea, useOpenFromQuickAdd } from '../components/ui'
 
 const empty = { title: '', doctor: '', place: '', at: '', questions: '', result: '' }
 
@@ -58,6 +58,7 @@ export default function Appointments() {
   const all = useLiveQuery(() => db.appointments.orderBy('at').toArray(), []) ?? []
   const [form, setForm] = useState(empty)
   const [sheet, setSheet] = useState(false)
+  useOpenFromQuickAdd(() => setSheet(true))
   const [open, setOpen] = useState<number | null>(null)
   const now = new Date().toISOString().slice(0, 16)
   const upcoming = all.filter(a => a.at >= now)
@@ -75,6 +76,7 @@ export default function Appointments() {
   return (
     <div className="space-y-3">
       <PageHeader
+        compact
         subtitle={upcoming.length ? `${upcoming.length} yaklaşan` : 'Takvim'}
         title="Randevular"
         action={<Fab label="Randevu ekle" onClick={() => setSheet(true)} />}

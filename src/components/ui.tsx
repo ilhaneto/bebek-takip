@@ -1,18 +1,54 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from 'react'
+import { useEffect, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 
 const cx = (...c: (string | false | undefined)[]) => c.filter(Boolean).join(' ')
 
-export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
+export function PageHeader({ title, subtitle, action, compact }: { title: string; subtitle?: string; action?: ReactNode; compact?: boolean }) {
   return (
-    <header className="flex items-end justify-between pt-2 pb-5">
+    <header className={cx('flex items-end justify-between', compact ? 'pt-1 pb-2' : 'pt-2 pb-5')}>
       <div>
         {subtitle && <p className="text-[13px] font-medium text-muted">{subtitle}</p>}
-        <h1 className="text-[30px] font-bold tracking-tight leading-tight">{title}</h1>
+        {compact
+          ? <h2 className="text-[20px] font-bold tracking-tight leading-tight">{title}</h2>
+          : <h1 className="text-[30px] font-bold tracking-tight leading-tight">{title}</h1>}
       </div>
       {action}
     </header>
   )
+}
+
+/** Sekme içi bölümler arasında geçiş */
+export function Segmented<T extends string>({ items, value, onChange }: { items: { value: T; label: string }[]; value: T; onChange: (v: T) => void }) {
+  if (items.length < 2) return null
+  return (
+    <div className="flex gap-1 overflow-x-auto rounded-2xl bg-surface/80 border border-line/70 p-1 [scrollbar-width:none]">
+      {items.map(i => (
+        <button
+          key={i.value}
+          onClick={() => onChange(i.value)}
+          className={cx(
+            'flex-1 whitespace-nowrap rounded-xl px-3 h-10 text-[14px] font-semibold transition',
+            i.value === value ? 'bg-surface-2 text-ink shadow' : 'text-faint',
+          )}
+        >
+          {i.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** Adreste ?yeni=1 varsa (hızlı ekle menüsünden gelindiyse) ekleme panelini bir kez açar. */
+export function useOpenFromQuickAdd(open: () => void) {
+  const [params, setParams] = useSearchParams()
+  const want = params.get('yeni') === '1'
+  useEffect(() => {
+    if (!want) return
+    open()
+    setParams(p => { p.delete('yeni'); return p }, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [want])
 }
 
 export function Card({ children, className, onClick }: { children: ReactNode; className?: string; onClick?: () => void }) {

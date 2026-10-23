@@ -82,7 +82,7 @@ export default function WeekCard({ preg, due }: { preg: { week: number; day: num
 
   return (
     <>
-      <Card onClick={() => setOpen(true)} className="relative overflow-hidden p-4">
+      <Card onClick={() => setOpen(true)} className="relative overflow-clip p-4">
         <div className="absolute -right-16 -top-16 size-48 rounded-full bg-violet/20 blur-3xl" />
         <div className="relative flex items-center gap-3">
           <Ring value={(280 - preg.daysLeft) / 280} size={116}>

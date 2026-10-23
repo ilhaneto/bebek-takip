@@ -157,21 +157,42 @@ export function Empty({ icon: Icon, title, text }: { icon: LucideIcon; title: st
   )
 }
 
-/** Alttan açılan form paneli */
+/** Alttan açılan panel. Başlıktaki ✕ her zaman görünür; açıkken arkadaki sayfa kaymaz. */
 export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
+  useEffect(() => {
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [open])
+
   return (
     <div className={cx('fixed inset-0 z-50 transition', open ? 'visible' : 'invisible')}>
       <div onClick={onClose} className={cx('absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity', open ? 'opacity-100' : 'opacity-0')} />
       <div
         data-sheet-scroll
         className={cx(
-          'absolute inset-x-0 bottom-0 mx-auto max-w-md rounded-t-[28px] bg-surface border-t border-line p-5 transition-transform duration-300 max-h-[90vh] overflow-y-auto',
+          'absolute inset-x-0 bottom-0 mx-auto max-w-md rounded-t-[28px] bg-surface border-t border-line px-5 transition-transform duration-300 overflow-y-auto overscroll-contain',
           open ? 'translate-y-0' : 'translate-y-full',
         )}
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}
+        style={{
+          maxHeight: 'calc(100% - env(safe-area-inset-top) - 24px)',
+          paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)',
+        }}
       >
-        <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-line" />
-        <h3 className="text-xl font-bold mb-4">{title}</h3>
+        <div className="sticky top-0 z-10 -mx-5 mb-2 bg-surface px-5 pt-3 pb-3">
+          <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-line" />
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-xl font-bold">{title}</h3>
+            <button
+              onClick={onClose}
+              aria-label="Kapat"
+              className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-2 text-muted active:scale-90 transition"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          </div>
+        </div>
         {children}
       </div>
     </div>
